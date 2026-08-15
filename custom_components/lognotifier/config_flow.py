@@ -39,12 +39,17 @@ from .models import badge_levels_from_options, new_token, slugify_id
 TITLE = "Log Notifier"
 
 # Multi-select instead of a threshold: every level counts on its own in the badge.
+# The labels carry the canonical level names verbatim, so they are given inline
+# rather than through a translation key — hassfest requires those keys to be
+# lower case, which the level names are deliberately not.
 BADGE_LEVEL_SELECTOR = selector.SelectSelector(
     selector.SelectSelectorConfig(
-        options=LEVEL_ORDER,
+        options=[
+            selector.SelectOptionDict(value=level, label=level)
+            for level in LEVEL_ORDER
+        ],
         multiple=True,
         mode=selector.SelectSelectorMode.LIST,
-        translation_key="level",
     )
 )
 

@@ -52,16 +52,6 @@
       }
     }
   },
-  "selector": {
-    "level": {
-      "options": {
-        "ERROR": "ERROR",
-        "WARNING": "WARNING",
-        "INFO": "INFO",
-        "TRACE": "TRACE"
-      }
-    }
-  },
   "entity": {
     "sensor": {
       "unread": {
