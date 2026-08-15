@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from homeassistant.components.sensor import SensorEntity, SensorStateClass
+from homeassistant.components.sensor import (
+    ENTITY_ID_FORMAT,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import LEVEL_ORDER
-from .entity import ChannelEntity, TotalsEntity
+from .entity import ChannelEntity, TotalsEntity, async_apply_default_entity_ids
 from .models import Channel
 from .runtime import LogNotifierConfigEntry, LogNotifierRuntime
 
@@ -27,6 +31,7 @@ async def async_setup_entry(
         entities.append(HighestUnreadLevelSensor(runtime, channel))
     entities.append(UnreadTotalSensor(runtime))
     entities.append(HighestUnreadLevelTotalSensor(runtime))
+    async_apply_default_entity_ids(entities, ENTITY_ID_FORMAT)
     async_add_entities(entities)
 
 

@@ -94,6 +94,21 @@ There is exactly one config entry (`single_config_entry: true`). Channels are
 - `device.py` mirrors a device rename back into the channel options, then clears
   `name_by_user` so HA's own name stops shadowing the integration's.
 
+### Entity IDs carry the domain prefix
+
+Every entity gets its entity ID pre-set before it is added:
+`sensor.lognotifier_<channel_id>_<key>` and
+`sensor.lognotifier_totals_<key>`. Left to HA the ID would be built from the
+device name (`sensor.kitchen_unread`), which says nothing about where it comes
+from. `entity.py` builds the object ID, each platform's `async_setup_entry`
+applies its own `ENTITY_ID_FORMAT` through `async_apply_default_entity_ids`.
+
+This is a default for *new* entities only — the registry keeps the IDs of
+entities it already knows, and a rename in the UI keeps winning. Displayed
+names are unaffected: they still come from the translation keys and the device.
+The totals entity ID deliberately drops the `entry_id` that its unique ID
+carries; a random hex has no place in an ID people type into automations.
+
 ### Ingest is token-authenticated, not HA-authenticated
 
 `LogNotifierIngestView` sets `requires_auth = False`. The token in the URL path

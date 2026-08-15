@@ -5,6 +5,24 @@ The section of the version being tagged becomes the body of the GitHub release
 tag that has no section. Installation instructions are appended by the workflow
 and do not belong in an entry.
 
+## 1.0.2
+
+New entities now carry the integration in their entity ID. Nothing changes for
+an existing installation — no entity is renamed, no automation breaks.
+
+- **Entity IDs are prefixed with `lognotifier`.** A channel called "Kitchen"
+  used to produce `sensor.kitchen_unread`, because Home Assistant builds the
+  entity ID from the device name and nothing in it pointed back here. The
+  integration now proposes the ID itself: `sensor.lognotifier_kitchen_unread`,
+  `binary_sensor.lognotifier_kitchen_has_unread`, and
+  `sensor.lognotifier_totals_unread` for the totals across all channels.
+
+  This is a suggestion made at registration time. **Entities that already
+  exist keep their entity ID** — Home Assistant's registry remembers it, and
+  renaming in the UI keeps precedence. Only channels you add from now on get
+  the new scheme; to move an older one over, rename it under
+  *Settings → Devices & services → Entities*. Displayed names are untouched.
+
 ## 1.0.1
 
 A maintenance release. Nothing about ingest, storage, entities, services or the
