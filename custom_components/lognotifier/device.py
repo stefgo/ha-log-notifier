@@ -1,4 +1,7 @@
-"""Mirror a channel device rename back into the channel options.
+"""Keep the channel devices in sync with the channel options.
+
+Two directions: a device rename in the UI becomes the channel name, and a
+channel that no longer exists takes its device with it.
 
 A channel has two faces: the name in the integration's options (it appears in
 the card and in the message events) and the device that Home Assistant builds
@@ -18,6 +21,27 @@ from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 
 from .const import CONF_CHANNELS, CONF_NAME, DOMAIN
+
+
+@callback
+def async_remove_stale_devices(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Delete the devices of channels that no longer exist.
+
+    Removing a channel only takes it out of the options; its device and the
+    entities on it would otherwise stay behind in the registry as an orphan
+    nobody can get rid of. Called on every setup, so a reload after a deletion
+    cleans up. The totals device identifies itself by the ``entry_id`` and stays
+    as long as the entry does.
+    """
+    registry = dr.async_get(hass)
+    known = set(entry.options.get(CONF_CHANNELS, {})) | {entry.entry_id}
+    for device in dr.async_entries_for_config_entry(registry, entry.entry_id):
+        identifiers = {ident for domain, ident in device.identifiers if domain == DOMAIN}
+        if identifiers & known:
+            continue
+        # Detach instead of delete: the registry removes the device itself once
+        # no config entry is left on it, and takes its entities along.
+        registry.async_update_device(device.id, remove_config_entry_id=entry.entry_id)
 
 
 @callback

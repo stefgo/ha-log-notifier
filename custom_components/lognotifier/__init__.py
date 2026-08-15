@@ -22,7 +22,7 @@ from .const import (
     STORAGE_KEY,
     STORAGE_VERSION,
 )
-from .device import async_track_device_renames
+from .device import async_remove_stale_devices, async_track_device_renames
 from .runtime import LogNotifierConfigEntry, LogNotifierRuntime
 from .services import async_setup_services
 from .store import MessageStore
@@ -63,6 +63,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: LogNotifierConfigEntry) 
     )
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     entry.async_on_unload(async_track_device_renames(hass, entry))
+
+    # Before the platforms: a deleted channel leaves its device behind, and it
+    # has to be gone before the remaining entities are registered again.
+    async_remove_stale_devices(hass, entry)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     # On first start nobody is listening yet; after a reload caused by changed
