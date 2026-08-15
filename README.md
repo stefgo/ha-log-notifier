@@ -22,6 +22,24 @@ no Lovelace resource has to be maintained by hand.
 
 Home Assistant 2025.2 or newer is required.
 
+### Via HACS
+
+The repository is not in the HACS default catalogue, so it is added as a custom
+repository once:
+
+**HACS → ⋮ → Custom repositories** → `stefgo/ha-log-notifier`, category
+**Integration** → *Add*. Then find "Log Notifier" in HACS, install it and
+restart Home Assistant.
+
+HACS installs the release asset, in which the card is already built — nothing
+else has to be set up for it, and no Lovelace resource is configured by hand.
+
+The blueprint does not come along: HACS handles exactly one category per
+repository, and this one is registered as an integration. It is imported
+separately, see [Push notifications](#push-notifications).
+
+### Manually
+
 The card is not committed in built form. The build places it directly into the
 integration's `www` directory, from where the integration serves it:
 
@@ -42,6 +60,8 @@ rsync -a blueprints/automation/lognotifier <ha>/blueprints/automation/
 The build step is not optional: without
 `custom_components/lognotifier/www/log-notifier-card.js` the integration reports
 at startup that the card is missing and does not register it.
+
+### Setup
 
 After the restart:
 **Settings → Devices & services → Add integration → Log Notifier**.
@@ -403,7 +423,15 @@ mark_read: visible
 
 ## Push notifications
 
-The bundled blueprint listens for the `lognotifier_message` event:
+The blueprint listens for the `lognotifier_message` event. After a HACS install
+it has to be imported once — **Settings → Automations & scenes → Blueprints →
+Import blueprint** takes this URL:
+
+```
+https://github.com/stefgo/ha-log-notifier/blob/main/blueprints/automation/lognotifier/push_notification.yaml
+```
+
+A manual install already carries it along. Either way it then sits under:
 
 **Settings → Automations → Blueprint → Log Notifier — Push notification**
 
