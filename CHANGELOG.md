@@ -5,6 +5,18 @@ The section of the version being tagged becomes the body of the GitHub release
 tag that has no section. Installation instructions are appended by the workflow
 and do not belong in an entry.
 
+## 1.0.3
+
+A bug fix release. Nothing about ingest, storage, services or the card changes.
+
+- **Deleting a channel now deletes its device.** Removing a channel in the
+  options took it out of the configuration and threw its messages away, but the
+  device Home Assistant had built from it stayed behind in the registry — with
+  its entities on it, unavailable and impossible to get rid of by hand. The
+  integration now removes the devices of channels that no longer exist; the
+  reload following the deletion cleans up right away, and leftovers from
+  earlier deletions disappear on the next start.
+
 ## 1.0.2
 
 New entities now carry the integration in their entity ID. Nothing changes for
