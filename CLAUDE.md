@@ -43,6 +43,23 @@ resource is ever configured by hand**, and a missing build only produces a
 warning at startup. `tests/test_integrity.py` asserts that
 `const.CARD_FILENAME` and the domain path still match `card/rollup.config.js`.
 
+### Distribution and brand images
+
+HACS installs the release asset, not the repository: `hacs.json` sets
+`zip_release`, and `.github/workflows/release.yml` builds the card on a `v*`
+tag and zips `custom_components/lognotifier` with `manifest.json` at the
+archive root. The tag has to match the manifest version — the workflow refuses
+otherwise. The blueprint stays outside that zip; HACS handles one category per
+repository and this one is registered as an integration.
+
+`custom_components/lognotifier/brand/` holds `icon.png` (256×256) and
+`icon@2x.png` (512×512), which HA 2026.3 and newer serve from
+`/api/brands/integration/lognotifier/`; `icon.svg` next to them is their source.
+Do **not** open a pull request against `home-assistant/brands` — that repository
+auto-closes custom integrations now. The icon in the HACS list stays a
+placeholder regardless, because HACS' frontend still resolves it against the
+old CDN (hacs/integration#5223).
+
 ### HA-free core
 
 `store.py`, `models.py` and `ingest.py` contain no Home Assistant imports. That
