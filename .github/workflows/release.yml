@@ -29,6 +29,11 @@ jobs:
             exit 1
           fi
 
+      # The description is versioned in CHANGELOG.md, so a release never goes
+      # out with nothing but a commit list. A missing section stops the tag.
+      - name: Assemble release notes
+        run: python .github/scripts/release_notes.py "${GITHUB_REF_NAME#v}" release-notes.md
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -52,5 +57,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" lognotifier.zip \
-            --title "$GITHUB_REF_NAME" \
-            --generate-notes
+            --title "Log Notifier ${GITHUB_REF_NAME#v}" \
+            --notes-file release-notes.md

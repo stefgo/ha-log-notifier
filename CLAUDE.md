@@ -52,6 +52,12 @@ archive root. The tag has to match the manifest version — the workflow refuses
 otherwise. The blueprint stays outside that zip; HACS handles one category per
 repository and this one is registered as an integration.
 
+The release description comes from `CHANGELOG.md`:
+`.github/scripts/release_notes.py` cuts out the `## <version>` section and
+appends the installation part, which is why an entry carries only what changed.
+A tag whose version has no section fails the build — write the entry **before**
+tagging. A release must never go out with nothing but a commit list.
+
 `custom_components/lognotifier/brand/` holds `icon.png` (256×256) and
 `icon@2x.png` (512×512), which HA 2026.3 and newer serve from
 `/api/brands/integration/lognotifier/`; `icon.svg` next to them is their source.
