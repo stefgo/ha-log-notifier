@@ -1,0 +1,11 @@
+node_modules/
+# Build target of the card — the integration serves it from there.
+custom_components/lognotifier/www/
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+.DS_Store
+
+# Contains the target host and paths of a private instance — stays local.
+builddeploy.sh

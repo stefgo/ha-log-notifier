@@ -1,0 +1,128 @@
+blueprint:
+  name: Log Notifier — Push notification
+  description: >
+    Sends a push notification when a message of one of the selected levels
+    arrives in a Log Notifier channel. The levels are picked individually —
+    there is no threshold, WARNING does not pull ERROR in with it.
+  domain: automation
+  source_url: https://github.com/stefgo/ha-log-notifier/blob/main/blueprints/automation/lognotifier/push_notification.yaml
+  input:
+    channels:
+      name: Channels
+      description: >
+        Channel IDs to report on (empty = all channels). The IDs are in the
+        "channel_id" attribute of the unread sensors.
+      default: []
+      selector:
+        text:
+          multiple: true
+    levels:
+      name: Levels
+      description: >
+        Only messages of these levels trigger a push. Every level stands on its
+        own; an empty selection effectively switches the automation off.
+      default: [ERROR, WARNING]
+      selector:
+        select:
+          multiple: true
+          options:
+            - ERROR
+            - WARNING
+            - INFO
+            - TRACE
+    notify_services:
+      name: Notify services
+      description: Service names without "notify.", e.g. mobile_app_pixel.
+      selector:
+        text:
+          multiple: true
+    quiet_levels:
+      name: Levels that break through quiet hours
+      description: >
+        These levels are delivered during quiet hours as well. Leave empty so
+        quiet hours apply without exception.
+      default: [ERROR]
+      selector:
+        select:
+          multiple: true
+          options:
+            - ERROR
+            - WARNING
+            - INFO
+            - TRACE
+    quiet_start:
+      name: Quiet hours start
+      description: During quiet hours only what is exempted above gets through.
+      default: "22:00:00"
+      selector:
+        time:
+    quiet_end:
+      name: Quiet hours end
+      default: "07:00:00"
+      selector:
+        time:
+    click_action:
+      name: Target when tapped
+      description: Frontend path that is opened when the notification is tapped.
+      default: /lovelace/0
+      selector:
+        text:
+
+mode: queued
+max: 25
+
+triggers:
+  - trigger: event
+    event_type: lognotifier_message
+
+variables:
+  channels: !input channels
+  levels: !input levels
+  quiet_levels: !input quiet_levels
+  quiet_start: !input quiet_start
+  quiet_end: !input quiet_end
+  services: !input notify_services
+  level: "{{ trigger.event.data.level }}"
+  # Quiet hours can run across midnight — hence the or-comparison.
+  in_quiet_hours: >
+    {% set now_t = now().strftime('%H:%M:%S') %}
+    {% if quiet_start < quiet_end %}
+      {{ quiet_start <= now_t < quiet_end }}
+    {% else %}
+      {{ now_t >= quiet_start or now_t < quiet_end }}
+    {% endif %}
+
+conditions:
+  - condition: template
+    value_template: >
+      {{ channels | length == 0 or trigger.event.data.channel_id in channels }}
+  - condition: template
+    value_template: "{{ level in levels }}"
+  - condition: template
+    value_template: "{{ level in quiet_levels or not in_quiet_hours }}"
+
+actions:
+  - repeat:
+      for_each: "{{ services }}"
+      sequence:
+        - action: "notify.{{ repeat.item }}"
+          data:
+            title: >
+              {{ trigger.event.data.channel_name }} · {{ level }}
+            message: >
+              {%- set body = trigger.event.data.title if trigger.event.data.title
+                  else trigger.event.data.content -%}
+              {#- Strip code blocks and formatting; inside the block scalar
+                  backslashes stay literal, hence a pattern without them. -#}
+              {{ body | regex_replace('```[^`]*```', ' ')
+                      | regex_replace('[*_~|`>#]', '')
+                      | trim | truncate(240, true) }}
+            data:
+              tag: "lognotifier_{{ trigger.event.data.channel_id }}"
+              group: lognotifier
+              url: !input click_action
+              clickAction: !input click_action
+              notification_icon: >
+                {{ 'mdi:alert-circle' if level == 'ERROR'
+                   else 'mdi:alert' if level == 'WARNING'
+                   else 'mdi:information' }}

@@ -1,0 +1,4 @@
+# Die Tests kommen ohne laufendes Home Assistant aus: Geprüft wird die reine
+# Logik (Levels, Store, Ingest-Parsing, Rate-Limit) plus die Konsistenz von
+# Manifest und Übersetzungen.
+pytest>=8.0

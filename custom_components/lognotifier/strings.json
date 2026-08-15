@@ -1,0 +1,119 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Log Notifier",
+        "description": "Set up Log Notifier. Channels are added afterwards under Configure."
+      }
+    },
+    "abort": {
+      "already_configured": "Log Notifier is already set up."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Channels",
+        "menu_options": {
+          "add_channel": "Add channel",
+          "select_channel": "Edit channel"
+        }
+      },
+      "add_channel": {
+        "title": "Add channel",
+        "description": "The ingest token is generated automatically and can be viewed while editing the channel.",
+        "data": {
+          "name": "Name",
+          "icon": "Icon",
+          "badge_levels": "Levels counted by the badge",
+          "max_messages": "Keep messages (count)",
+          "max_age_days": "Keep messages (days, 0 = unlimited)"
+        }
+      },
+      "select_channel": {
+        "title": "Edit channel",
+        "data": {
+          "channel": "Channel"
+        }
+      },
+      "edit_channel": {
+        "title": "Channel {name}",
+        "description": "Ingest URL: {url}\n\nThe name applies everywhere — to the device, the entities and the card. Renaming the device instead has the same effect.",
+        "data": {
+          "name": "Name",
+          "icon": "Icon",
+          "badge_levels": "Levels counted by the badge",
+          "max_messages": "Keep messages (count)",
+          "max_age_days": "Keep messages (days, 0 = unlimited)",
+          "enabled": "Channel active",
+          "rotate_token": "Generate new token",
+          "delete": "Delete channel"
+        }
+      }
+    }
+  },
+  "selector": {
+    "level": {
+      "options": {
+        "ERROR": "ERROR",
+        "WARNING": "WARNING",
+        "INFO": "INFO",
+        "TRACE": "TRACE"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "unread": {
+        "name": "Unread"
+      },
+      "highest_unread_level": {
+        "name": "Highest unread level"
+      },
+      "unread_total": {
+        "name": "Unread total"
+      },
+      "highest_unread_level_total": {
+        "name": "Highest unread level total"
+      }
+    },
+    "binary_sensor": {
+      "has_unread": {
+        "name": "Unread messages"
+      },
+      "has_unread_total": {
+        "name": "Unread messages total"
+      }
+    }
+  },
+  "services": {
+    "send": {
+      "name": "Send message",
+      "description": "Adds a message to a channel.",
+      "fields": {
+        "channel_id": { "name": "Channel", "description": "ID of the channel." },
+        "content": { "name": "Content", "description": "Message text, Discord-style markdown." },
+        "level": { "name": "Level", "description": "Log level of the message." },
+        "title": { "name": "Title", "description": "Optional headline." },
+        "source": { "name": "Source", "description": "Sending service." },
+        "tags": { "name": "Tags", "description": "Optional list of tags." },
+        "format": { "name": "Format", "description": "markdown or plain." }
+      }
+    },
+    "mark_read": {
+      "name": "Mark as read",
+      "description": "Sets the read marker; without a channel it applies to all.",
+      "fields": {
+        "channel_id": { "name": "Channel", "description": "ID of the channel." },
+        "up_to_id": { "name": "Up to message", "description": "Highest message ID considered read." }
+      }
+    },
+    "clear": {
+      "name": "Clear channel",
+      "description": "Removes all messages of a channel.",
+      "fields": {
+        "channel_id": { "name": "Channel", "description": "ID of the channel." }
+      }
+    }
+  }
+}

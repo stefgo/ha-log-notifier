@@ -1,0 +1,119 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Log Notifier",
+        "description": "Log Notifier einrichten. Kanäle werden anschließend unter „Konfigurieren“ angelegt."
+      }
+    },
+    "abort": {
+      "already_configured": "Log Notifier ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Kanäle",
+        "menu_options": {
+          "add_channel": "Kanal anlegen",
+          "select_channel": "Kanal bearbeiten"
+        }
+      },
+      "add_channel": {
+        "title": "Kanal anlegen",
+        "description": "Der Ingest-Token wird automatisch erzeugt und ist beim Bearbeiten des Kanals einsehbar.",
+        "data": {
+          "name": "Name",
+          "icon": "Symbol",
+          "badge_levels": "Level, die in die Badge zählen",
+          "max_messages": "Meldungen aufbewahren (Anzahl)",
+          "max_age_days": "Meldungen aufbewahren (Tage, 0 = unbegrenzt)"
+        }
+      },
+      "select_channel": {
+        "title": "Kanal bearbeiten",
+        "data": {
+          "channel": "Kanal"
+        }
+      },
+      "edit_channel": {
+        "title": "Kanal {name}",
+        "description": "Ingest-URL: {url}\n\nDer Name gilt überall — für das Gerät, die Entities und die Card. Ihn stattdessen am Gerät zu ändern, führt zum selben Ergebnis.",
+        "data": {
+          "name": "Name",
+          "icon": "Symbol",
+          "badge_levels": "Level, die in die Badge zählen",
+          "max_messages": "Meldungen aufbewahren (Anzahl)",
+          "max_age_days": "Meldungen aufbewahren (Tage, 0 = unbegrenzt)",
+          "enabled": "Kanal aktiv",
+          "rotate_token": "Neuen Token erzeugen",
+          "delete": "Kanal löschen"
+        }
+      }
+    }
+  },
+  "selector": {
+    "level": {
+      "options": {
+        "ERROR": "ERROR",
+        "WARNING": "WARNING",
+        "INFO": "INFO",
+        "TRACE": "TRACE"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "unread": {
+        "name": "Ungelesen"
+      },
+      "highest_unread_level": {
+        "name": "Höchstes ungelesenes Level"
+      },
+      "unread_total": {
+        "name": "Ungelesen gesamt"
+      },
+      "highest_unread_level_total": {
+        "name": "Höchstes ungelesenes Level gesamt"
+      }
+    },
+    "binary_sensor": {
+      "has_unread": {
+        "name": "Ungelesene Meldungen"
+      },
+      "has_unread_total": {
+        "name": "Ungelesene Meldungen gesamt"
+      }
+    }
+  },
+  "services": {
+    "send": {
+      "name": "Meldung senden",
+      "description": "Legt eine Meldung in einem Kanal ab.",
+      "fields": {
+        "channel_id": { "name": "Kanal", "description": "ID des Kanals." },
+        "content": { "name": "Inhalt", "description": "Meldungstext, Discord-artiges Markdown." },
+        "level": { "name": "Level", "description": "Log-Level der Meldung." },
+        "title": { "name": "Titel", "description": "Optionale Überschrift." },
+        "source": { "name": "Quelle", "description": "Absendender Dienst." },
+        "tags": { "name": "Tags", "description": "Optionale Liste von Schlagwörtern." },
+        "format": { "name": "Format", "description": "markdown oder plain." }
+      }
+    },
+    "mark_read": {
+      "name": "Als gelesen markieren",
+      "description": "Setzt den Lesestand; ohne Kanal gilt der Aufruf für alle.",
+      "fields": {
+        "channel_id": { "name": "Kanal", "description": "ID des Kanals." },
+        "up_to_id": { "name": "Bis Meldung", "description": "Höchste ID, die als gelesen gilt." }
+      }
+    },
+    "clear": {
+      "name": "Kanal leeren",
+      "description": "Entfernt alle Meldungen eines Kanals.",
+      "fields": {
+        "channel_id": { "name": "Kanal", "description": "ID des Kanals." }
+      }
+    }
+  }
+}

@@ -1,0 +1,62 @@
+send:
+  fields:
+    channel_id:
+      required: true
+      example: backups
+      selector:
+        text:
+    content:
+      required: true
+      example: "**Backup** finished"
+      selector:
+        text:
+          multiline: true
+    level:
+      default: INFO
+      selector:
+        select:
+          options:
+            - ERROR
+            - WARNING
+            - INFO
+            - TRACE
+    title:
+      example: Nightly backup
+      selector:
+        text:
+    source:
+      example: pbs-cron
+      selector:
+        text:
+    tags:
+      example: "[backup, proxmox]"
+      selector:
+        object:
+    format:
+      default: markdown
+      selector:
+        select:
+          options:
+            - markdown
+            - plain
+
+mark_read:
+  fields:
+    channel_id:
+      example: backups
+      selector:
+        text:
+    up_to_id:
+      example: 42
+      selector:
+        number:
+          min: 1
+          mode: box
+
+clear:
+  fields:
+    channel_id:
+      required: true
+      example: backups
+      selector:
+        text:

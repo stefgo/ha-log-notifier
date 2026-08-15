@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3D5AFE"/>
+      <stop offset="1" stop-color="#1A237E"/>
+    </linearGradient>
+  </defs>
+
+  <!-- rounded app tile -->
+  <rect x="0" y="0" width="512" height="512" rx="112" ry="112" fill="url(#bg)"/>
+
+  <!-- log sheet -->
+  <rect x="104" y="96" width="252" height="300" rx="28" ry="28" fill="#FFFFFF"/>
+
+  <!-- log lines -->
+  <g fill="#1A237E" opacity="0.85">
+    <rect x="146" y="152" width="168" height="24" rx="12"/>
+    <rect x="146" y="212" width="120" height="24" rx="12"/>
+    <rect x="146" y="272" width="150" height="24" rx="12"/>
+    <rect x="146" y="332" width="92"  height="24" rx="12"/>
+  </g>
+
+  <!-- level markers -->
+  <g>
+    <circle cx="330" cy="164" r="13" fill="#FF5252"/>
+    <circle cx="330" cy="224" r="13" fill="#FFB300"/>
+  </g>
+
+  <!-- bell badge -->
+  <g transform="translate(300 240)">
+    <circle cx="80" cy="80" r="104" fill="url(#bg)"/>
+    <circle cx="80" cy="80" r="88" fill="#FFC400"/>
+    <g transform="translate(80 80) scale(0.82) translate(-80 -103)">
+    <path fill="#1A237E" d="M80 24c-8.8 0-16 7.2-16 16v6.6c-21.4 6.9-36 26.8-36 49.9v25.9l-11.6 17.4A8 8 0 0 0 23 152h114a8 8 0 0 0 6.6-12.5L132 122.4V96.5c0-23.1-14.6-43-36-49.9V40c0-8.8-7.2-16-16-16z"/>
+    <path fill="#1A237E" d="M60 162a20 20 0 0 0 40 0z"/>
+    </g>
+  </g>
+</svg>
