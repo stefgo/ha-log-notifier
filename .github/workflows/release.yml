@@ -43,7 +43,10 @@ jobs:
       # The built card is not committed; it is created here and travels in the
       # zip, because that is the only copy the HACS install ever sees.
       - run: npm --prefix card ci
+      # LOGNOTIFIER_MINIFY is release-only: local builds stay readable.
       - run: npm --prefix card run build
+        env:
+          LOGNOTIFIER_MINIFY: "1"
 
       # HACS extracts the zip straight into custom_components/lognotifier, so
       # manifest.json has to sit at the root of the archive.

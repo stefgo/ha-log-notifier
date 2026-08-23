@@ -13,6 +13,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements_test.txt
 # Card: build, watch, test
 npm --prefix card ci
 npm --prefix card run build      # writes into custom_components/lognotifier/www/
+LOGNOTIFIER_MINIFY=1 npm --prefix card run build   # minified, as the release does
 npm --prefix card run watch
 npm --prefix card test
 npm --prefix card test -- -t "does not link dangerous schemes"   # -t matches a substring
@@ -40,7 +41,9 @@ goes straight into `custom_components/lognotifier/www/` (gitignored). At setup
 the integration registers that directory as a static path and calls
 `add_extra_js_url` with a `?v=<version>` query string — so **no Lovelace
 resource is ever configured by hand**, and a missing build only produces a
-warning at startup. `tests/test_integrity.py` asserts that
+warning at startup. Terser only runs when `LOGNOTIFIER_MINIFY=1` is set — the
+release workflow does, local builds and `watch` stay readable so what the
+browser shows matches `card/src/`. `tests/test_integrity.py` asserts that
 `const.CARD_FILENAME` and the domain path still match `card/rollup.config.js`.
 
 ### Distribution and brand images
