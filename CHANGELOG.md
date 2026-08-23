@@ -5,6 +5,17 @@ The section of the version being tagged becomes the body of the GitHub release
 tag that has no section. Installation instructions are appended by the workflow
 and do not belong in an entry.
 
+## 1.0.4
+
+A packaging release. The integration itself is unchanged — same ingest, storage,
+entities, services and card behaviour as 1.0.3.
+
+- **The card ships minified.** The bundle in the release asset is run through
+  terser now, which takes it from roughly 65 kB down to 43 kB — that is what
+  every dashboard loads on the first visit after an update. Its source map
+  travels with it, so the card stays debuggable in the browser. Builds from a
+  checkout stay unminified; only the release workflow minifies.
+
 ## 1.0.3
 
 A bug fix release. Nothing about ingest, storage, services or the card changes.
