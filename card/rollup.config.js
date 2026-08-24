@@ -16,7 +16,10 @@ const version = JSON.parse(
 
 // Only the release workflow sets LOGNOTIFIER_MINIFY; local builds and `watch`
 // keep the readable bundle, so what is debugged in the browser is what is in
-// src/.
+// src/. The same flag decides the source map: it is what makes a minified
+// bundle debuggable, so it belongs to every local build and to none of the
+// released ones, where it would only travel along unread in the zip of every
+// HACS install.
 const minify = process.env.LOGNOTIFIER_MINIFY === "1";
 
 // The target is the integration's www directory directly: the integration
@@ -27,7 +30,7 @@ export default defineConfig({
   output: {
     file: "../custom_components/lognotifier/www/log-notifier-card.js",
     format: "es",
-    sourcemap: true,
+    sourcemap: !minify,
   },
   plugins: [
     resolve({ browser: true, preferBuiltins: false }),
