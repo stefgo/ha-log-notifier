@@ -1,5 +1,10 @@
 # Log Notifier for Home Assistant
 
+[![Release](https://img.shields.io/github/v/release/stefgo/ha-log-notifier?style=flat-square)](https://github.com/stefgo/ha-log-notifier/releases)
+[![HACS: custom](https://img.shields.io/badge/HACS-custom-41BDF5?style=flat-square)](https://hacs.xyz/)
+[![Home Assistant 2025.2+](https://img.shields.io/badge/Home%20Assistant-2025.2%2B-41BDF5?style=flat-square)](https://www.home-assistant.io/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/stefgo/ha-log-notifier/blob/main/LICENSE)
+
 A central collection point for messages from your own services — as a
 replacement for Discord webhooks. Every channel has its own ingest URL, every
 message a log level, and Home Assistant shows channels, messages and unread
