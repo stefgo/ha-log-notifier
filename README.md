@@ -508,14 +508,25 @@ ingest tokens deliberately not.
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements_test.txt
 .venv/bin/python -m pytest       # store, levels, ingest, consistency
+
+python3 -m venv .venv-ha && .venv-ha/bin/pip install -r requirements_test_ha.txt
+.venv-ha/bin/python -m pytest -c pytest_ha.ini   # with a real Home Assistant
+
 npm --prefix card test           # markdown parser
 ```
 
-The Python tests get by without a running Home Assistant: `store.py`,
+The suite in `tests/` gets by without a running Home Assistant: `store.py`,
 `models.py` and `ingest.py` are free of HA imports and are loaded flat (see
 `tests/conftest.py`). Covered are the ring buffer, the read position, purging,
 level translation, payload parsing and the throttle — plus the consistency of
 manifest, translations and services.
+
+The suite in `tests/ha/` needs the real framework and therefore its own
+environment: entry setup and unload, the config and options flow (adding,
+editing, rotating a token, deleting a channel), the ingest HTTP view including
+wrong tokens, disabled channels, oversized bodies and the rate limit, the three
+services, the five WebSocket commands including the live subscription, and the
+diagnostics — which are checked to contain no channel token anywhere.
 
 The card tests cover the markdown parser, that is, the place where foreign text
 meets our own interpretation.

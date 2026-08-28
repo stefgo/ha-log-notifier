@@ -13,3 +13,6 @@ __pycache__/
 
 # Local build counter of the card, per working copy.
 card/.build-number
+
+# Home-Assistant test environment, separate from .venv on purpose.
+.venv-ha/
