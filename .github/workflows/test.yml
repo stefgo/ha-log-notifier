@@ -7,6 +7,20 @@ on:
   workflow_call:
 
 jobs:
+  lint:
+    name: ruff and mypy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements_test.txt
+      - run: ruff check .
+      - run: ruff format --check .
+      # Only the Home-Assistant-free modules; see pyproject.toml.
+      - run: mypy
+
   python:
     name: Python
     runs-on: ubuntu-latest
