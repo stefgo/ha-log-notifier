@@ -2,6 +2,9 @@
 // the type system is tsc's job (`npm run typecheck`) — so this stays on the
 // syntactic rules, which is also why it needs no type information and runs in
 // a second.
+// `@eslint/js` is a direct dependency since ESLint 10: it is no longer
+// installed alongside eslint itself, so without the entry in package.json this
+// import fails to resolve.
 import js from "@eslint/js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
