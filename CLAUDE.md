@@ -18,6 +18,10 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements_test.txt
 .venv/bin/python -m pytest
 .venv/bin/python -m pytest tests/test_store.py::test_purge_drops_old_messages
 
+# The Home-Assistant-dependent tests, in their own environment
+python3 -m venv .venv-ha && .venv-ha/bin/pip install -r requirements_test_ha.txt
+.venv-ha/bin/python -m pytest -c pytest_ha.ini
+
 # Card: build, watch, test
 npm --prefix card ci
 npm --prefix card run build      # writes into custom_components/lognotifier/www/
@@ -162,10 +166,22 @@ against an allow-list (`LENGTH` / `CALC` regexes in `log-notifier-card.ts`).
 
 ## Testing
 
-Python tests are in `tests/` (pytest, no Home Assistant install needed), the
-card's in `card/test/*.test.ts` (vitest). `.github/workflows/test.yml` runs
-both plus `npm --prefix card run typecheck` and the card build on every push
-and pull request, and again before a release.
+Three suites, deliberately kept apart:
+
+- **`tests/`** — the framework-free logic (levels, store, ingest parsing, rate
+  limit, manifest/translation consistency). Runs on nothing but pytest, and
+  **must stay that way**: it covers exactly the modules without a Home
+  Assistant import, which are also the ones mypy checks.
+- **`tests/ha/`** — everything that needs the real framework: entry setup and
+  unload, the config and options flow, the ingest HTTP view, the services, the
+  WebSocket commands and diagnostics. Own environment (`.venv-ha`), own
+  configuration (`pytest_ha.ini`), because pytest.ini next door is set up for
+  the framework-free suite.
+- **`card/test/`** — the card's pure modules (vitest). The elements have no
+  DOM-based tests, so `npm --prefix card run typecheck` is what guards them.
+
+`.github/workflows/test.yml` runs all three plus lint, type check and the card
+build on every push and pull request, and again before a release.
 
 ## Releasing
 
