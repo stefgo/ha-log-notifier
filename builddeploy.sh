@@ -28,7 +28,9 @@ fi
 
 echo "Building card ..."
 npm --prefix card ci --silent
-npm --prefix card run build
+# The local build counter is opt-in, so only the bundle deployed from here
+# carries one; releases built on GitHub stay at the plain semver.
+LOGNOTIFIER_BUILD_COUNTER=1 npm --prefix card run build
 
 echo "Deploying integration to ${HOST}:${TARGET} ..."
 rsync -az --delete \
@@ -41,7 +43,11 @@ ssh -p "${SSH_PORT}" "${HOST}" "mkdir -p ${CONFIG}/blueprints/automation/lognoti
 scp -P "${SSH_PORT}" blueprints/automation/lognotifier/*.yaml \
   "${HOST}:${CONFIG}/blueprints/automation/lognotifier/"
 
-VERSION="$(node -p "require('./card/package.json').version")"
+# Read back what the build baked into the bundle, so the message below names
+# the exact build that was just deployed.
+VERSION="$(node -p "require('./custom_components/lognotifier/manifest.json').version")+build.$(cat card/.build-number 2>/dev/null || echo '?')"
 
 echo "Done. Deployed card version: ${VERSION}"
 echo "Restart Home Assistant so the integration is reloaded."
+echo "The integration serves the card itself; the console line of the reloaded"
+echo "dashboard has to show the version above — an older one is a cached bundle."

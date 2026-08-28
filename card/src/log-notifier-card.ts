@@ -29,8 +29,6 @@ import type {
   LogNotifierCardConfig,
 } from "./types";
 
-const CARD_VERSION = "1.0.0";
-
 /** Default height of the message area. */
 const DEFAULT_HEIGHT = "70vh";
 
