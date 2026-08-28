@@ -1,0 +1,28 @@
+[tool.ruff]
+# Home Assistant's own setting — staying with it keeps copied snippets and
+# upstream examples from being reformatted on arrival.
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # bugbear
+    "BLE",  # blind except
+    "SIM",  # simplify
+    "RUF",  # ruff-specific
+]
+ignore = [
+    # The docstrings deliberately explain the "why" in prose; line breaks in
+    # them are a readability decision, not a style violation.
+    "E501",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["custom_components"]
+# Home Assistant is a third-party import here, but it is the framework — its
+# own repositories separate it out, and so do the existing files.
+known-third-party = ["homeassistant"]
