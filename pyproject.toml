@@ -19,6 +19,8 @@ ignore = [
     # The docstrings deliberately explain the "why" in prose; line breaks in
     # them are a readability decision, not a style violation.
     "E501",
+    # Prose uses en dashes for ranges ("10–50") and asides. They are meant.
+    "RUF002",
 ]
 
 [tool.ruff.lint.isort]
@@ -26,3 +28,26 @@ known-first-party = ["custom_components"]
 # Home Assistant is a third-party import here, but it is the framework — its
 # own repositories separate it out, and so do the existing files.
 known-third-party = ["homeassistant"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+# Checking one module of a package pulls in its ``__init__.py`` — and that one
+# imports Home Assistant. "silent" analyses those files for the types they
+# provide but reports nothing about them.
+follow_imports = "silent"
+# Only the Home-Assistant-free modules. The rest imports homeassistant, which
+# ships no stubs of its own — checking it would mean pulling the whole
+# framework into the type check for very little gain.
+files = [
+    "custom_components/lognotifier/const.py",
+    "custom_components/lognotifier/ingest.py",
+    "custom_components/lognotifier/models.py",
+    "custom_components/lognotifier/store.py",
+]
+
+[[tool.mypy.overrides]]
+# Home Assistant ships no stubs and is not installed for this check; voluptuous
+# has none either. Both only appear in the modules that are not checked here.
+module = ["homeassistant.*", "voluptuous.*"]
+ignore_missing_imports = true

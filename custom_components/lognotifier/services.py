@@ -88,9 +88,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
         channel_id = call.data.get(ATTR_CHANNEL_ID)
         # Without a channel the call applies to all of them — the usual "I have
         # seen everything" request.
-        targets = (
-            [channel_id] if channel_id else [c.id for c in runtime.channels]
-        )
+        targets = [channel_id] if channel_id else [c.id for c in runtime.channels]
         for target in targets:
             if runtime.store.channel(target) is None:
                 raise ServiceValidationError(f"Unknown channel: {target}")

@@ -56,9 +56,7 @@ class ChannelEntity(LogNotifierEntity):
     arrives or is acknowledged.
     """
 
-    def __init__(
-        self, runtime: LogNotifierRuntime, channel: Channel, key: str
-    ) -> None:
+    def __init__(self, runtime: LogNotifierRuntime, channel: Channel, key: str) -> None:
         self.runtime = runtime
         self.channel = channel
         self._attr_unique_id = f"{DOMAIN}_{channel.id}_{key}"

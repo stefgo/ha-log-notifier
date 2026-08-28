@@ -5,7 +5,6 @@ from __future__ import annotations
 import importlib
 
 import pytest
-
 from conftest import PACKAGE
 
 const = importlib.import_module(f"{PACKAGE}.const")
@@ -44,7 +43,9 @@ def test_query_parameters_as_defaults():
     assert parsed.level == "ERROR"
     assert parsed.source == "cron"
     # The payload wins over the query parameter.
-    parsed = ingest.parse_payload({"content": "a", "level": "TRACE"}, default_level="ERROR")
+    parsed = ingest.parse_payload(
+        {"content": "a", "level": "TRACE"}, default_level="ERROR"
+    )
     assert parsed.level == "TRACE"
 
 
@@ -69,7 +70,9 @@ def test_non_object_is_rejected():
 
 
 def test_timestamp_must_be_a_number():
-    assert ingest.parse_payload({"content": "a", "timestamp": 1700000000}).ts == 1700000000
+    assert (
+        ingest.parse_payload({"content": "a", "timestamp": 1700000000}).ts == 1700000000
+    )
     with pytest.raises(ingest.PayloadError):
         ingest.parse_payload({"content": "a", "timestamp": "yesterday"})
 

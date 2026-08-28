@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import time
 from collections import deque
-from typing import Any, Iterable, Protocol
+from collections.abc import Iterable
+from typing import Any, Protocol
 
 from .const import (
     MAX_CONTENT_CHARS,
@@ -320,8 +321,7 @@ class MessageStore:
     def unread_per_channel(self) -> dict[str, int]:
         """``{channel_id: unread}`` for channels with a backlog, largest first."""
         counts = {
-            channel.id: self.unread_count(channel)
-            for channel in self.active_channels()
+            channel.id: self.unread_count(channel) for channel in self.active_channels()
         }
         return dict(
             sorted(

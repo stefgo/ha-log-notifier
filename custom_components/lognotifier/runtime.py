@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -23,6 +24,7 @@ from .models import Channel, Message
 from .store import MessageStore
 
 _LOGGER = logging.getLogger(__name__)
+
 
 class LogNotifierRuntime:
     """Everything that ingest, entities and frontend need in common."""
@@ -89,7 +91,7 @@ class LogNotifierRuntime:
         for callback in list(self._subscribers):
             try:
                 callback(event, payload)
-            except Exception:  # noqa: BLE001 - a dead client must not break anything
+            except Exception:
                 _LOGGER.debug("Could not notify subscriber", exc_info=True)
 
     # --- Write operations ---------------------------------------------------
