@@ -43,6 +43,7 @@ jobs:
           cache: npm
           cache-dependency-path: card/package-lock.json
       - run: npm --prefix card ci
+      - run: npm --prefix card run lint
       # The elements have no DOM-based unit tests, so without this a type
       # error in them reaches CI only if it happens to break the bundler too.
       - run: npm --prefix card run typecheck
