@@ -57,7 +57,9 @@ def add(store, level, channel_id="backups", ts=None, content="x"):
 
 
 def test_ids_count_up_across_channels():
-    store, _ = make_store([make_channel(), make_channel(id="services", name="Services")])
+    store, _ = make_store(
+        [make_channel(), make_channel(id="services", name="Services")]
+    )
     first = add(store, "INFO")
     second = add(store, "INFO", channel_id="services")
     assert second.id > first.id

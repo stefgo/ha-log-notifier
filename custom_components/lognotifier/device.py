@@ -36,7 +36,9 @@ def async_remove_stale_devices(hass: HomeAssistant, entry: ConfigEntry) -> None:
     registry = dr.async_get(hass)
     known = set(entry.options.get(CONF_CHANNELS, {})) | {entry.entry_id}
     for device in dr.async_entries_for_config_entry(registry, entry.entry_id):
-        identifiers = {ident for domain, ident in device.identifiers if domain == DOMAIN}
+        identifiers = {
+            ident for domain, ident in device.identifiers if domain == DOMAIN
+        }
         if identifiers & known:
             continue
         # Detach instead of delete: the registry removes the device itself once

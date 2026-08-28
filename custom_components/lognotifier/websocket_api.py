@@ -47,11 +47,7 @@ def ws_channels(
         return
     connection.send_result(
         msg["id"],
-        {
-            "channels": [
-                runtime.store.summary(channel) for channel in runtime.channels
-            ]
-        },
+        {"channels": [runtime.store.summary(channel) for channel in runtime.channels]},
     )
 
 

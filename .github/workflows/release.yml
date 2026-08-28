@@ -16,25 +16,30 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # HACS shows the tag, the integration reports the manifest version — if
-      # the two drift apart, an update looks installed but is not.
-      - name: Check manifest version against tag
+      # the two drift apart, an update looks installed but is not. The card
+      # carries its own version and is bumped in the same step, so it is
+      # checked here too rather than being noticed months later.
+      - name: Check versions against tag
         run: |
           tag="${GITHUB_REF_NAME#v}"
-          manifest=$(python -c "import json;print(json.load(open('custom_components/lognotifier/manifest.json'))['version'])")
-          if [ "$tag" != "$manifest" ]; then
-            echo "Tag $GITHUB_REF_NAME does not match manifest version $manifest" >&2
-            exit 1
-          fi
+          read_version() { python -c "import json,sys;print(json.load(open(sys.argv[1]))['version'])" "$1"; }
+          for file in custom_components/lognotifier/manifest.json card/package.json; do
+            version=$(read_version "$file")
+            if [ "$tag" != "$version" ]; then
+              echo "Tag $GITHUB_REF_NAME does not match version $version in $file" >&2
+              exit 1
+            fi
+          done
 
       # The description is versioned in CHANGELOG.md, so a release never goes
       # out with nothing but a commit list. A missing section stops the tag.
       - name: Assemble release notes
         run: python .github/scripts/release_notes.py "${GITHUB_REF_NAME#v}" release-notes.md
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm

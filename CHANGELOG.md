@@ -1,11 +1,14 @@
 # Changelog
 
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the
+project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
 The section of the version being tagged becomes the body of the GitHub release
 — `.github/workflows/release.yml` reads it from here and refuses to publish a
 tag that has no section. Installation instructions are appended by the workflow
 and do not belong in an entry.
 
-## 1.0.4
+## [1.0.4] — 2026-08-23
 
 A packaging release. The integration itself is unchanged — same ingest, storage,
 entities, services and card behaviour as 1.0.3.
@@ -16,7 +19,7 @@ entities, services and card behaviour as 1.0.3.
   travels with it, so the card stays debuggable in the browser. Builds from a
   checkout stay unminified; only the release workflow minifies.
 
-## 1.0.3
+## [1.0.3] — 2026-08-15
 
 A bug fix release. Nothing about ingest, storage, services or the card changes.
 
@@ -28,7 +31,7 @@ A bug fix release. Nothing about ingest, storage, services or the card changes.
   reload following the deletion cleans up right away, and leftovers from
   earlier deletions disappear on the next start.
 
-## 1.0.2
+## [1.0.2] — 2026-08-15
 
 New entities now carry the integration in their entity ID. Nothing changes for
 an existing installation — no entity is renamed, no automation breaks.
@@ -46,7 +49,7 @@ an existing installation — no entity is renamed, no automation breaks.
   the new scheme; to move an older one over, rename it under
   *Settings → Devices & services → Entities*. Displayed names are untouched.
 
-## 1.0.1
+## [1.0.1] — 2026-08-15
 
 A maintenance release. Nothing about ingest, storage, entities, services or the
 card changes — upgrading is optional unless the missing icon bothers you.
@@ -67,7 +70,7 @@ instead of the local proxy — see
 [hacs/integration#5223](https://github.com/hacs/integration/issues/5223).
 Inside Home Assistant itself the icon shows up.
 
-## 1.0.0
+## [1.0.0] — 2026-08-15
 
 First release. A central collection point in Home Assistant for messages from
 your own services — as a replacement for Discord webhooks. Every channel has its
@@ -100,3 +103,9 @@ onto the four canonical names.
 Message text is never turned into HTML. The card parses a Discord-flavored
 markdown subset into a typed tree and builds its elements from it, so foreign
 text structurally cannot inject markup.
+
+[1.0.4]: https://github.com/stefgo/ha-log-notifier/compare/v1.0.3...v1.0.4
+[1.0.3]: https://github.com/stefgo/ha-log-notifier/compare/v1.0.2...v1.0.3
+[1.0.2]: https://github.com/stefgo/ha-log-notifier/compare/v1.0.1...v1.0.2
+[1.0.1]: https://github.com/stefgo/ha-log-notifier/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/stefgo/ha-log-notifier/releases/tag/v1.0.0

@@ -61,9 +61,7 @@ class UnreadSensor(ChannelEntity, SensorEntity):
             "channel_name": self.channel.name,
             "badge_levels": list(self.channel.badge_levels),
             "highest_unread_level": store.highest_unread_level(self.channel),
-            "unread_by_level": {
-                level: by_level.get(level, 0) for level in LEVEL_ORDER
-            },
+            "unread_by_level": {level: by_level.get(level, 0) for level in LEVEL_ORDER},
             "total_messages": store.summary(self.channel)["total"],
             "last_level": last.level if last else None,
             "last_title": last.title if last else None,
@@ -111,9 +109,7 @@ class UnreadTotalSensor(TotalsEntity, SensorEntity):
         per_channel = totals["unread_per_channel"]
         return {
             "highest_unread_level": totals["highest_unread_level"],
-            "unread_by_level": {
-                level: by_level.get(level, 0) for level in LEVEL_ORDER
-            },
+            "unread_by_level": {level: by_level.get(level, 0) for level in LEVEL_ORDER},
             "unread_per_channel": per_channel,
             "unread_by_channel": {
                 channel.name: per_channel[channel.id]

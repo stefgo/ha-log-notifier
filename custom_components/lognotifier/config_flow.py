@@ -45,8 +45,7 @@ TITLE = "Log Notifier"
 BADGE_LEVEL_SELECTOR = selector.SelectSelector(
     selector.SelectSelectorConfig(
         options=[
-            selector.SelectOptionDict(value=level, label=level)
-            for level in LEVEL_ORDER
+            selector.SelectOptionDict(value=level, label=level) for level in LEVEL_ORDER
         ],
         multiple=True,
         mode=selector.SelectSelectorMode.LIST,
@@ -167,7 +166,9 @@ class LogNotifierOptionsFlow(OptionsFlow):
             self._selected = user_input["channel"]
             return await self.async_step_edit_channel()
         options = [
-            selector.SelectOptionDict(value=channel_id, label=data.get(CONF_NAME, channel_id))
+            selector.SelectOptionDict(
+                value=channel_id, label=data.get(CONF_NAME, channel_id)
+            )
             for channel_id, data in channels.items()
         ]
         return self.async_show_form(

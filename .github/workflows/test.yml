@@ -7,12 +7,26 @@ on:
   workflow_call:
 
 jobs:
+  lint:
+    name: ruff and mypy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements_test.txt
+      - run: ruff check .
+      - run: ruff format --check .
+      # Only the Home-Assistant-free modules; see pyproject.toml.
+      - run: mypy
+
   python:
     name: Python
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - run: pip install -r requirements_test.txt
@@ -22,13 +36,17 @@ jobs:
     name: Card
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: card/package-lock.json
       - run: npm --prefix card ci
+      - run: npm --prefix card run lint
+      # The elements have no DOM-based unit tests, so without this a type
+      # error in them reaches CI only if it happens to break the bundler too.
+      - run: npm --prefix card run typecheck
       - run: npm --prefix card test
       # The build is what ends up in the release zip — a card that does not
       # compile must not reach a tag.

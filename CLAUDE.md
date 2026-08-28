@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project overview
+
+`ha-log-notifier` is a Home Assistant integration (domain `lognotifier`) plus
+its Lovelace card: a central collection point for messages from your own
+services, as a replacement for Discord webhooks. Every channel has its own
+ingest URL, every message a log level, and the card shows channels, messages and
+unread badges on the dashboard.
+
 ## Commands
 
 ```bash
@@ -17,20 +25,14 @@ LOGNOTIFIER_MINIFY=1 npm --prefix card run build   # minified, as the release do
 npm --prefix card run watch
 npm --prefix card test
 npm --prefix card test -- -t "does not link dangerous schemes"   # -t matches a substring
+npm --prefix card run lint       # eslint
+npm --prefix card run typecheck
 ```
 
-There is no linter configured. `builddeploy.sh` (gitignored, local only) builds
-the card and rsyncs integration + blueprint to a Home Assistant host.
-
-## Naming
-
-The repository is `ha-log-notifier`, the Home Assistant domain is `lognotifier`,
-the card element is `log-notifier-card`. This mismatch is deliberate — changing
-the domain would break existing config entries, entity IDs and ingest URLs.
-
-`custom_components/lognotifier/manifest.json` is the single source of truth for
-the version; `const.INTEGRATION_VERSION` reads it at import time. Do not add a
-second version constant.
+`ruff` runs through `.pre-commit-config.yaml` (`pre-commit install` once); its
+configuration is in `pyproject.toml`. `builddeploy.sh` builds the card and
+rsyncs integration + blueprint to a Home Assistant host — it reads the target
+from `.env`, see `.env.example`.
 
 ## Architecture
 
@@ -157,6 +159,33 @@ security boundary; the card test suite covers it.
 
 The card's `height` option goes into a CSS variable and is likewise validated
 against an allow-list (`LENGTH` / `CALC` regexes in `log-notifier-card.ts`).
+
+## Testing
+
+Python tests are in `tests/` (pytest, no Home Assistant install needed), the
+card's in `card/test/*.test.ts` (vitest). `.github/workflows/test.yml` runs
+both plus `npm --prefix card run typecheck` and the card build on every push
+and pull request, and again before a release.
+
+## Releasing
+
+Bump the version in **both** `custom_components/lognotifier/manifest.json` and
+`card/package.json`, close the CHANGELOG section as `## [x.y.z] — <date>`,
+then push an annotated `vx.y.z` tag. `.github/workflows/release.yml` refuses a
+tag whose version files disagree with it, builds the minified card into the
+zip and takes the release body from
+`.github/scripts/release_notes.py` — the CHANGELOG entry *is* the release
+description, and a missing section fails the release on purpose.
+
+## Naming
+
+The repository is `ha-log-notifier`, the Home Assistant domain is `lognotifier`,
+the card element is `log-notifier-card`. This mismatch is deliberate — changing
+the domain would break existing config entries, entity IDs and ingest URLs.
+
+`custom_components/lognotifier/manifest.json` is the single source of truth for
+the version; `const.INTEGRATION_VERSION` reads it at import time. Do not add a
+second version constant.
 
 ## Translations
 

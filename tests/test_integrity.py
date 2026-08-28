@@ -7,7 +7,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from conftest import COMPONENT, PACKAGE
 
 const = importlib.import_module(f"{PACKAGE}.const")
