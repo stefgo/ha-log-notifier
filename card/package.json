@@ -1,6 +1,6 @@
 {
   "name": "log-notifier-card",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "description": "Lovelace card for the Log Notifier integration",
   "type": "module",
   "private": true,
@@ -8,7 +8,8 @@
     "build": "rollup -c",
     "watch": "rollup -c -w",
     "dev": "rollup -c -w",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "license": "MIT",
   "dependencies": {
