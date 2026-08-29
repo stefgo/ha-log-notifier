@@ -8,6 +8,48 @@ The section of the version being tagged becomes the body of the GitHub release
 tag that has no section. Installation instructions are appended by the workflow
 and do not belong in an entry.
 
+## [1.0.5] — 2026-08-29
+
+A maintenance release. Ingest, storage, entities, services and the card behave
+exactly as in 1.0.4 — with one visible exception, the version the card reports.
+
+### Fixed
+
+- **The card reported version 1.0.0**, four releases after 1.0.0: `CARD_VERSION`
+  was a constant in the source that nobody remembered to bump. The version now
+  comes from `manifest.json` at build time, so it cannot go stale again. The
+  console line of a deployed card is therefore trustworthy from here on.
+
+### Added
+
+- **A Home Assistant test suite** (`tests/ha`, 40 tests): entry setup and
+  unload, the config and options flow, the ingest HTTP view — including unknown
+  tokens, disabled channels, oversized bodies and the rate limit —, the three
+  services, the five WebSocket commands and the diagnostics, which are checked
+  to contain no channel token anywhere. The framework-free suite in `tests/`
+  stays exactly as it was: runnable with nothing but pytest.
+- ruff and mypy in CI, ESLint for the card, and pre-commit hooks. mypy covers
+  the four Home-Assistant-free modules under the same strict settings
+  ha-crowdsec-integration uses.
+- A local build counter: `builddeploy.sh` builds with
+  `LOGNOTIFIER_BUILD_COUNTER=1`, so the deployed card reports
+  `<version>+build.<n>` and a cached bundle is recognisable by its number.
+- dependabot for actions and npm, plus the weekly probe that watches whether the
+  TypeScript 7 hold can come off.
+
+### Changed
+
+- `builddeploy.sh` is part of the repository now. It used to carry the target
+  host in the script itself and was therefore git-ignored; it reads `.env` with
+  the shared `HA_HOST` / `HA_SSH_PORT` / `HA_CONFIG` / `HA_TARGET` names instead
+  (see `.env.example`).
+- The Python code was brought under the shared ruff configuration — formatting
+  only, no behaviour change.
+- The release refuses a tag whose `card/package.json` disagrees with it; until
+  now only `manifest.json` was checked, which is how the card version drifted.
+- CHANGELOG headings follow Keep a Changelog (`## [x.y.z] — date`) with compare
+  links, and the release notes come from the script shared by all four projects.
+
 ## [1.0.4] — 2026-08-23
 
 A packaging release. The integration itself is unchanged — same ingest, storage,
@@ -104,6 +146,7 @@ Message text is never turned into HTML. The card parses a Discord-flavored
 markdown subset into a typed tree and builds its elements from it, so foreign
 text structurally cannot inject markup.
 
+[1.0.5]: https://github.com/stefgo/ha-log-notifier/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/stefgo/ha-log-notifier/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/stefgo/ha-log-notifier/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/stefgo/ha-log-notifier/compare/v1.0.1...v1.0.2
