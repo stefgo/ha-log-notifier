@@ -111,7 +111,7 @@ Response: `202 {"id": 17, "channel": "backups", "level": "ERROR"}`.
 | `source` | no | Sending service |
 | `tags` | no | List of keywords |
 | `format` | no | `markdown` (default) or `plain` |
-| `timestamp` | no | Unix time, in case the message is submitted after the fact |
+| `timestamp` | no | Unix time or ISO 8601 (`2026-09-28T14:03:00+02:00`, `…Z`; no offset means UTC), in case the message is submitted after the fact |
 
 Foreign level names are translated: `crit`, `fatal`, `err` → `ERROR`,
 `warn` → `WARNING`, `notice` → `INFO`, `debug`/`verbose` → `TRACE`. Numeric
