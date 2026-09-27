@@ -69,12 +69,34 @@ def test_non_object_is_rejected():
         ingest.parse_payload(["not", "an", "object"])
 
 
-def test_timestamp_must_be_a_number():
+def test_timestamp_accepts_unix_time():
     assert (
         ingest.parse_payload({"content": "a", "timestamp": 1700000000}).ts == 1700000000
     )
+    assert (
+        ingest.parse_payload({"content": "a", "timestamp": "1700000000.5"}).ts
+        == 1700000000.5
+    )
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "2023-11-14T22:13:20Z",
+        "2023-11-14T22:13:20+00:00",
+        "2023-11-14T23:13:20+01:00",
+        "2023-11-14T22:13:20",
+        "2023-11-14 22:13:20.000Z",
+    ],
+)
+def test_timestamp_accepts_iso_8601(value):
+    assert ingest.parse_payload({"content": "a", "timestamp": value}).ts == 1700000000
+
+
+@pytest.mark.parametrize("value", ["yesterday", "", True, [1], {"a": 1}])
+def test_timestamp_rejects_garbage(value):
     with pytest.raises(ingest.PayloadError):
-        ingest.parse_payload({"content": "a", "timestamp": "yesterday"})
+        ingest.parse_payload({"content": "a", "timestamp": value})
 
 
 def test_text_body_lands_as_plain():

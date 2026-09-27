@@ -8,6 +8,14 @@ The section of the version being tagged becomes the body of the GitHub release
 tag that has no section. Installation instructions are appended by the workflow
 and do not belong in an entry.
 
+## [Unreleased]
+
+### Added
+
+- **`timestamp` accepts ISO 8601** at the JSON ingest endpoint, next to Unix
+  time: `2026-09-28T14:03:00+02:00`, `2026-09-28T12:03:00Z` or a date without
+  offset, which is read as UTC. Numeric strings still count as Unix seconds.
+
 ## [1.0.5] — 2026-08-29
 
 A maintenance release. Ingest, storage, entities, services and the card behave

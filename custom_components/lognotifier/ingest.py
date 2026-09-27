@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 from .const import (
@@ -85,12 +86,7 @@ def parse_payload(
         raise PayloadError(f"Unknown format: {fmt!r}")
 
     ts = data.get("timestamp")
-    parsed_ts: float | None = None
-    if ts is not None:
-        try:
-            parsed_ts = float(ts)
-        except (TypeError, ValueError):
-            raise PayloadError("Field 'timestamp' is not a number") from None
+    parsed_ts = parse_timestamp(ts) if ts is not None else None
 
     return ParsedMessage(
         level=level,
@@ -101,6 +97,32 @@ def parse_payload(
         format=fmt,
         ts=parsed_ts,
     )
+
+
+def parse_timestamp(value: Any) -> float:
+    """Turn a Unix time or an ISO 8601 string into a Unix time.
+
+    Numbers and numeric strings are taken as Unix seconds. Anything else must
+    be ISO 8601 (``2026-09-28T14:03:00+02:00``, ``…Z``); without an offset the
+    value is read as UTC — the sender's local zone is unknown here.
+    """
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        return float(value)
+    if isinstance(value, str):
+        text = value.strip()
+        try:
+            return float(text)
+        except ValueError:
+            pass
+        try:
+            parsed = datetime.fromisoformat(text)
+        except ValueError:
+            pass
+        else:
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=UTC)
+            return parsed.timestamp()
+    raise PayloadError("Field 'timestamp' is neither a Unix time nor an ISO 8601 date")
 
 
 def parse_text(
