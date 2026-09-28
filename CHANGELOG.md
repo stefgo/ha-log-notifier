@@ -10,11 +10,21 @@ and do not belong in an entry.
 
 ## [Unreleased]
 
+## [1.0.6] — 2026-09-28
+
+A small feature release. Storage, entities, services and the card behave exactly
+as in 1.0.5; the ingest endpoint accepts one more timestamp format.
+
 ### Added
 
 - **`timestamp` accepts ISO 8601** at the JSON ingest endpoint, next to Unix
   time: `2026-09-28T14:03:00+02:00`, `2026-09-28T12:03:00Z` or a date without
   offset, which is read as UTC. Numeric strings still count as Unix seconds.
+
+### Changed
+
+- The card's build and test tooling was updated (vitest 5, rollup, eslint,
+  typescript-eslint). The shipped bundle is unaffected.
 
 ## [1.0.5] — 2026-08-29
 
@@ -154,6 +164,7 @@ Message text is never turned into HTML. The card parses a Discord-flavored
 markdown subset into a typed tree and builds its elements from it, so foreign
 text structurally cannot inject markup.
 
+[1.0.6]: https://github.com/stefgo/ha-log-notifier/compare/v1.0.5...v1.0.6
 [1.0.5]: https://github.com/stefgo/ha-log-notifier/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/stefgo/ha-log-notifier/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/stefgo/ha-log-notifier/compare/v1.0.2...v1.0.3
