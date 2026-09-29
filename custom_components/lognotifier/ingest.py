@@ -8,6 +8,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 from .const import (
+    BLOCK_FIELDS,
+    BLOCK_TEXT,
     FORMAT_MARKDOWN,
     FORMAT_PLAIN,
     FORMATS,
@@ -16,7 +18,7 @@ from .const import (
     RATE_LIMIT_BURST,
     RATE_LIMIT_PER_MINUTE,
 )
-from .models import normalize_level
+from .models import Block, Rows, clamp_blocks, normalize_level
 
 
 @dataclass
@@ -30,6 +32,7 @@ class ParsedMessage:
     tags: list[str] | None = None
     format: str = FORMAT_MARKDOWN
     ts: float | None = None
+    blocks: list[Block] | None = None
 
 
 class PayloadError(ValueError):
@@ -51,16 +54,24 @@ def parse_payload(
     if not isinstance(data, dict):
         raise PayloadError("Object expected")
 
+    # A message made of blocks alone is fine — like a Discord embed without a
+    # description.
+    has_blocks = bool(data.get("blocks"))
     content = data.get("content", data.get("message", data.get("text")))
     if content is None:
-        raise PayloadError("Field 'content' is missing")
+        if not has_blocks:
+            raise PayloadError("Field 'content' is missing")
+        content = ""
     if not isinstance(content, str):
         content = str(content)
     content = content.strip()
-    if not content:
-        raise PayloadError("Field 'content' is empty")
     if len(content) > MAX_CONTENT_CHARS:
         content = content[:MAX_CONTENT_CHARS] + "\n…"
+    blocks = parse_blocks(
+        data.get("blocks"), text_budget=MAX_CONTENT_CHARS - len(content)
+    )
+    if not content and not blocks:
+        raise PayloadError("Field 'content' is empty")
 
     raw_level = data.get("level", default_level)
     level = normalize_level(raw_level)
@@ -96,7 +107,84 @@ def parse_payload(
         tags=tags,
         format=fmt,
         ts=parsed_ts,
+        blocks=blocks or None,
     )
+
+
+def parse_blocks(value: Any, *, text_budget: int = MAX_CONTENT_CHARS) -> list[Block]:
+    """Validate the blocks shown below the content, in their order.
+
+    A block is ``{"type": "text", "text": …}`` or ``{"type": "fields",
+    "rows": …}``. Shorthands: a bare string is a text block, an object without
+    ``type`` is a grid if it has ``rows`` and a text block if it has ``text``.
+    ``rows`` is a list of rows, each a list of ``{"label", "value"}`` objects —
+    the row decides how many fields sit side by side, and a bare object in
+    place of a row counts as a row with one field.
+
+    Wrong types are refused; empty blocks, rows and fields are dropped, and
+    whatever exceeds the limits is cut off, like surplus ``tags``. Text blocks
+    share ``text_budget`` — what the content left of ``MAX_CONTENT_CHARS``.
+    """
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise PayloadError("Field 'blocks' must be a list")
+    blocks: list[Block] = []
+    for item in value:
+        if isinstance(item, str):
+            item = {"type": BLOCK_TEXT, "text": item}
+        if not isinstance(item, dict):
+            raise PayloadError("Each block must be a text or an object")
+        kind = item.get("type")
+        if kind is None:
+            kind = (
+                BLOCK_FIELDS
+                if "rows" in item
+                else BLOCK_TEXT
+                if "text" in item
+                else None
+            )
+        if kind == BLOCK_TEXT:
+            blocks.append({"type": BLOCK_TEXT, "text": _block_text(item.get("text"))})
+        elif kind == BLOCK_FIELDS:
+            blocks.append({"type": BLOCK_FIELDS, "rows": _parse_rows(item.get("rows"))})
+        else:
+            raise PayloadError(f"Unknown block type: {kind!r}")
+    return clamp_blocks(blocks, text_budget)
+
+
+def _parse_rows(value: Any) -> Rows:
+    """The rows of one grid block."""
+    if not isinstance(value, list):
+        raise PayloadError("Block 'rows' must be a list of rows")
+    rows: Rows = []
+    for raw_row in value:
+        row = [raw_row] if isinstance(raw_row, dict) else raw_row
+        if not isinstance(row, list):
+            raise PayloadError("Each row must be a list of fields")
+        parsed_row = []
+        for item in row:
+            if not isinstance(item, dict):
+                raise PayloadError(
+                    "Each field must be an object with 'label' and 'value'"
+                )
+            parsed_row.append(
+                {
+                    "label": _block_text(item.get("label")),
+                    "value": _block_text(item.get("value")),
+                }
+            )
+        rows.append(parsed_row)
+    return rows
+
+
+def _block_text(value: Any) -> str:
+    """Text, label or value as a trimmed string; nested structures are refused."""
+    if value is None:
+        return ""
+    if isinstance(value, dict | list):
+        raise PayloadError("Block text, 'label' and 'value' must be text")
+    return str(value).strip()
 
 
 def parse_timestamp(value: Any) -> float:

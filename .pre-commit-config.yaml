@@ -17,6 +17,9 @@ repos:
     hooks:
       - id: check-json
       - id: check-yaml
+        # Blueprints use Home Assistant tags such as !input; --unsafe checks
+        # the syntax only instead of constructing the objects.
+        args: [--unsafe]
       - id: end-of-file-fixer
       - id: trailing-whitespace
 

@@ -3,6 +3,7 @@
 import { html, TemplateResult, nothing } from "lit";
 
 import { Block, Inline, parseMarkdown } from "./markdown";
+import type { MessageBlock, MessageField } from "./types";
 
 export function renderMarkdown(text: string): TemplateResult {
   return html`${parseMarkdown(text).map(renderBlock)}`;
@@ -11,6 +12,54 @@ export function renderMarkdown(text: string): TemplateResult {
 /** Plain messages: keep line breaks, interpret nothing else. */
 export function renderPlain(text: string): TemplateResult {
   return html`<pre class="plain">${text}</pre>`;
+}
+
+/**
+ * The blocks below the content, in the sender's order. Text follows the
+ * message's format like the content does; a block type this card does not know
+ * (sent by a newer integration) is skipped.
+ */
+export function renderBlocks(blocks: MessageBlock[], plain: boolean): TemplateResult {
+  return html`${blocks.map((block) => {
+    switch (block.type) {
+      case "text":
+        return plain ? renderPlain(block.text) : renderMarkdown(block.text);
+      case "fields":
+        return renderFields(block.rows, plain);
+      default:
+        return nothing;
+    }
+  })}`;
+}
+
+/**
+ * The label/value grid: one block, every row spanning its full width, the
+ * columns of a row sharing it evenly. Values follow the message's format,
+ * labels are always plain text.
+ */
+function renderFields(rows: MessageField[][], plain: boolean): TemplateResult {
+  return html`<div class="fields">
+    ${rows.map(
+      (row) =>
+        html`<div class="field-row" style=${`--ln-columns:${row.length}`}>
+          ${row.map(
+            (field) =>
+              html`<div class="field">
+                ${field.label
+                  ? html`<div class="field-label">${field.label}</div>`
+                  : nothing}
+                ${field.value
+                  ? html`<div class="field-value">
+                      ${plain
+                        ? html`<span class="plain">${field.value}</span>`
+                        : renderMarkdown(field.value)}
+                    </div>`
+                  : nothing}
+              </div>`,
+          )}
+        </div>`,
+    )}
+  </div>`;
 }
 
 function renderBlock(block: Block): TemplateResult {

@@ -53,6 +53,36 @@ async def test_json_message_is_accepted(
     assert messages[0].tags == ["backup", "nightly"]
 
 
+async def test_json_message_of_blocks_alone_is_accepted(
+    hass: HomeAssistant, setup_entry, hass_client_no_auth
+) -> None:
+    """With `blocks` present, `content` may be left out."""
+    client = await hass_client_no_auth()
+
+    response = await client.post(
+        URL, json={"blocks": [{"rows": [[{"label": "Load", "value": "0.4"}]]}, "ok"]}
+    )
+
+    assert response.status == 202
+    message = setup_entry.runtime_data.store.messages("backups")[0]
+    assert message.content == ""
+    assert message.blocks == [
+        {"type": "fields", "rows": [[{"label": "Load", "value": "0.4"}]]},
+        {"type": "text", "text": "ok"},
+    ]
+
+
+async def test_unknown_block_type_is_reported(
+    hass: HomeAssistant, setup_entry, hass_client_no_auth
+) -> None:
+    """Strict at the door: an unknown block type is a 400, not silently lost."""
+    client = await hass_client_no_auth()
+
+    response = await client.post(URL, json={"content": "a", "blocks": [{"type": "x"}]})
+
+    assert response.status == 400
+
+
 async def test_plain_text_takes_level_and_source_from_the_query(
     hass: HomeAssistant, setup_entry, hass_client_no_auth
 ) -> None:
@@ -135,7 +165,7 @@ async def test_invalid_json_is_reported(
 async def test_json_without_content_is_reported(
     hass: HomeAssistant, setup_entry, hass_client_no_auth
 ) -> None:
-    """`content` is the one field a message cannot do without."""
+    """Without `content` (and without `blocks`) there is no message."""
     client = await hass_client_no_auth()
 
     response = await client.post(URL, json={"level": "INFO"})

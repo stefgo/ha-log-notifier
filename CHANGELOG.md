@@ -10,6 +10,23 @@ instructions are appended by the workflow and do not belong in an entry.
 
 ## [Unreleased]
 
+### Added
+
+- **`blocks`** — text blocks and label/value grids below the message body, in
+  any order. A grid is modeled on the fields of a Discord embed: its `rows` are
+  a list of rows, each a list of `{"label", "value"}` objects; every row sets
+  its own number of columns, and the card lays all rows of a grid out as one
+  block of equal width. Shorthands: a bare string is a text block, an object
+  with `rows` is a grid. Accepted by the ingest endpoint and by
+  `lognotifier.send`, carried in the `lognotifier_message` event. Limits: 20
+  blocks, text shares the 8000 characters of `content`, 25 fields in total.
+
+### Changed
+
+- `content` is optional when `blocks` are given. The push blueprint falls back
+  to the first text block, then the first field, when a message has neither
+  title nor content.
+
 ## [1.0.6] — 2026-09-28
 
 A small feature release. Storage, entities, services and the card behave exactly

@@ -97,6 +97,16 @@ MAX_TITLE_CHARS = 200
 MAX_SOURCE_CHARS = 100
 MAX_TAGS = 10
 MAX_TAG_CHARS = 40
+# Blocks below the content: text and label/value grids in any order. Text
+# blocks share MAX_CONTENT_CHARS with the content, the field cap counts across
+# all grids. Rows carry their own column count, so the per-row cap keeps a
+# single row readable on a phone.
+MAX_BLOCKS = 20
+MAX_FIELD_ROWS = 10
+MAX_FIELDS_PER_ROW = 5
+MAX_FIELDS = 25
+MAX_FIELD_LABEL_CHARS = 100
+MAX_FIELD_VALUE_CHARS = 1000
 
 RATE_LIMIT_PER_MINUTE = 60
 RATE_LIMIT_BURST = 20
@@ -104,6 +114,9 @@ RATE_LIMIT_BURST = 20
 FORMAT_MARKDOWN = "markdown"
 FORMAT_PLAIN = "plain"
 FORMATS = (FORMAT_MARKDOWN, FORMAT_PLAIN)
+
+BLOCK_TEXT = "text"
+BLOCK_FIELDS = "fields"
 
 # --- Events, signals, storage ---------------------------------------------
 EVENT_MESSAGE = f"{DOMAIN}_message"
@@ -136,5 +149,6 @@ ATTR_CONTENT = "content"
 ATTR_SOURCE = "source"
 ATTR_TAGS = "tags"
 ATTR_FORMAT = "format"
+ATTR_BLOCKS = "blocks"
 ATTR_MESSAGE_ID = "message_id"
 ATTR_UP_TO_ID = "up_to_id"

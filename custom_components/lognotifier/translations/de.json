@@ -82,12 +82,13 @@
       "description": "Legt eine Meldung in einem Kanal ab.",
       "fields": {
         "channel_id": { "name": "Kanal", "description": "ID des Kanals." },
-        "content": { "name": "Inhalt", "description": "Meldungstext, Discord-artiges Markdown." },
+        "content": { "name": "Inhalt", "description": "Meldungstext, Discord-artiges Markdown. Optional, wenn Blöcke angegeben sind." },
         "level": { "name": "Level", "description": "Log-Level der Meldung." },
         "title": { "name": "Titel", "description": "Optionale Überschrift." },
         "source": { "name": "Quelle", "description": "Absendender Dienst." },
         "tags": { "name": "Tags", "description": "Optionale Liste von Schlagwörtern." },
-        "format": { "name": "Format", "description": "markdown oder plain." }
+        "format": { "name": "Format", "description": "markdown oder plain." },
+        "blocks": { "name": "Blöcke", "description": "Text und Raster aus Beschriftung und Wert unter dem Inhalt, in beliebiger Reihenfolge: ein Textblock ist ein String, ein Raster ein Objekt mit rows." }
       }
     },
     "mark_read": {

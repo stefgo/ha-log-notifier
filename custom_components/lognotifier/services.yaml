@@ -6,7 +6,6 @@ send:
       selector:
         text:
     content:
-      required: true
       example: "**Backup** finished"
       selector:
         text:
@@ -39,6 +38,10 @@ send:
           options:
             - markdown
             - plain
+    blocks:
+      example: '[{"rows": [[{"label": "Job", "value": "vm-101"}, {"label": "Exit", "value": "2"}]]}, "Datastore full"]'
+      selector:
+        object:
 
 mark_read:
   fields:

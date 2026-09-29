@@ -7,6 +7,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 
 from custom_components.lognotifier.const import (
+    ATTR_BLOCKS,
     ATTR_CHANNEL_ID,
     ATTR_CONTENT,
     ATTR_LEVEL,
@@ -59,6 +60,53 @@ async def test_send_defaults_to_info(hass: HomeAssistant, runtime) -> None:
     await _send(hass)
 
     assert runtime.store.messages("backups")[0].level == LEVEL_INFO
+
+
+async def test_send_stores_blocks(hass: HomeAssistant, runtime) -> None:
+    """Blocks pass the service in order, shorthands normalized."""
+    await _send(
+        hass,
+        **{
+            ATTR_CONTENT: "",
+            ATTR_BLOCKS: [
+                {
+                    "rows": [
+                        [
+                            {"label": "Job", "value": "vm-101"},
+                            {"label": "Exit", "value": 2},
+                        ]
+                    ]
+                },
+                "Datastore full",
+            ],
+        },
+    )
+
+    message = runtime.store.messages("backups")[0]
+    assert message.content == ""
+    assert message.blocks == [
+        {
+            "type": "fields",
+            "rows": [
+                [{"label": "Job", "value": "vm-101"}, {"label": "Exit", "value": "2"}]
+            ],
+        },
+        {"type": "text", "text": "Datastore full"},
+    ]
+
+
+async def test_send_needs_content_or_blocks(hass: HomeAssistant, runtime) -> None:
+    """With neither there would be nothing to show."""
+    with pytest.raises(ServiceValidationError, match="content"):
+        await _send(hass, **{ATTR_CONTENT: " "})
+
+
+async def test_send_with_malformed_blocks_is_a_validation_error(
+    hass: HomeAssistant, runtime
+) -> None:
+    """A broken block is the caller's mistake, not an internal error."""
+    with pytest.raises(ServiceValidationError, match="block type"):
+        await _send(hass, **{ATTR_BLOCKS: [{"type": "divider"}]})
 
 
 async def test_send_to_an_unknown_channel_is_a_validation_error(

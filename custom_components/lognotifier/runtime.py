@@ -91,8 +91,12 @@ class LogNotifierRuntime:
         for callback in list(self._subscribers):
             try:
                 callback(event, payload)
+            # Caught so one broken card cannot abort a publish that is already
+            # stored, nor keep the other cards uninformed. A closed connection
+            # does not raise, so whatever lands here is a real bug — hence
+            # logged as an error, not buried at debug level.
             except Exception:
-                _LOGGER.debug("Could not notify subscriber", exc_info=True)
+                _LOGGER.exception("Could not notify subscriber")
 
     # --- Write operations ---------------------------------------------------
 
@@ -107,6 +111,7 @@ class LogNotifierRuntime:
             tags=parsed.tags,
             fmt=parsed.format,
             ts=parsed.ts,
+            blocks=parsed.blocks,
         )
         self._changed(channel.id)
         self.hass.bus.async_fire(
