@@ -53,7 +53,7 @@ def normalize_level(value: Any, default: str = LEVEL_INFO) -> str | None:
         return default
     if isinstance(value, bool):
         return None
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return level_from_severity(int(value))
     if not isinstance(value, str):
         return None
