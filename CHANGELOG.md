@@ -10,6 +10,8 @@ instructions are appended by the workflow and do not belong in an entry.
 
 ## [Unreleased]
 
+## [1.0.7] — 2026-09-29
+
 ### Added
 
 - **`blocks`** — text blocks and label/value grids below the message body, in
@@ -181,6 +183,7 @@ Message text is never turned into HTML. The card parses a Discord-flavored
 markdown subset into a typed tree and builds its elements from it, so foreign
 text structurally cannot inject markup.
 
+[1.0.7]: https://github.com/stefgo/ha-log-notifier/compare/v1.0.6...v1.0.7
 [1.0.6]: https://github.com/stefgo/ha-log-notifier/compare/v1.0.5...v1.0.6
 [1.0.5]: https://github.com/stefgo/ha-log-notifier/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/stefgo/ha-log-notifier/compare/v1.0.3...v1.0.4
