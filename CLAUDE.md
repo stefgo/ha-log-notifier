@@ -55,17 +55,16 @@ browser shows matches `card/src/`. `tests/test_integrity.py` asserts that
 ### Distribution and brand images
 
 HACS installs the release asset, not the repository: `hacs.json` sets
-`zip_release`, and `.github/workflows/release.yml` builds the card on a `v*`
-tag and zips `custom_components/lognotifier` with `manifest.json` at the
-archive root. The tag has to match the manifest version — the workflow refuses
-otherwise. The blueprint stays outside that zip; HACS handles one category per
-repository and this one is registered as an integration.
+`zip_release`, and `.github/workflows/release.yml` builds the card and zips
+`custom_components/lognotifier` with `manifest.json` at the archive root. The
+blueprint stays outside that zip; HACS handles one category per repository and
+this one is registered as an integration.
 
 The release description comes from `CHANGELOG.md`:
 `.github/scripts/release_notes.py` cuts out the `## <version>` section and
 appends the installation part, which is why an entry carries only what changed.
-A tag whose version has no section fails the build — write the entry **before**
-tagging. A release must never go out with nothing but a commit list.
+An empty `[Unreleased]` section fails the release — write the entry **before**
+releasing. A release must never go out with nothing but a commit list.
 
 `custom_components/lognotifier/brand/` holds `icon.png` (256×256) and
 `icon@2x.png` (512×512), which HA 2026.3 and newer serve from
@@ -185,17 +184,35 @@ build on every push and pull request, and again before a release.
 
 ## Releasing
 
-Bump the version in **both** `custom_components/lognotifier/manifest.json` and
-`card/package.json`, close the CHANGELOG section as `## [x.y.z] — <date>`,
-then push an annotated `vx.y.z` tag. `.github/workflows/release.yml` refuses a
-tag whose version files disagree with it, builds the minified card into the
-zip and takes the release body from
+Bump the version in **both** `custom_components/lognotifier/manifest.json` ## Releasing
+
+A release is started by hand, never by pushing a tag: **Actions → Release →
+Run workflow** on `main`, choosing `bump` (`patch` | `minor` | `major`) and
+`dry_run` (on by default — shows the next version, the diff and the release
+notes in the run summary and changes nothing). **Never bump a version or
+create a `v*` tag by hand.**
+
+`.github/workflows/release.yml` refuses any branch but `main`, runs `test.yml`,
+then `.github/scripts/bump_version.py` raises the version in `manifest.json`,
+`card/package.json` and `card/package-lock.json` (which must agree), turns
+`## [Unreleased]` into `## [x.y.z] — <date>` with a fresh empty Unreleased
+section above it and adds the compare link. It builds the minified card and
+the zip *before* pushing `chore(release): x.y.z [skip ci]` and the annotated
+tag atomically, then publishes the GitHub release with the body from
 `.github/scripts/release_notes.py` — the CHANGELOG entry *is* the release
-description, and a missing section fails the release on purpose.
+description. The tag is pushed with `GITHUB_TOKEN` and starts no other
+workflow, which is why everything happens in that one run.
 
-## Naming
+### Branches and pull requests
 
-The repository is `ha-log-notifier`, the Home Assistant domain is `lognotifier`,
+There is a single maintainer and no pull-request flow. Small changes go
+straight to `main`; larger work happens on a branch that **stays local** (the
+`push-main-only` pre-push hook in `.pre-commit-config.yaml` enforces it), is
+tested locally and merged with `git merge --no-ff`. Dependabot's pull requests
+are merged by `.github/workflows/dependabot-auto-merge.yml` once their Tests
+run is green; a red one stays open for a human.
+
+`,
 the card element is `log-notifier-card`. This mismatch is deliberate — changing
 the domain would break existing config entries, entity IDs and ingest URLs.
 

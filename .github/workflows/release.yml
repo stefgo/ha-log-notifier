@@ -1,69 +1,171 @@
 name: Release
 
+# A release is an action, not a side effect of pushing a tag. It is started by
+# hand from the Actions tab, only on main, and it does everything in one run:
+# raise the version, close the CHANGELOG entry, commit, tag, build the zip and
+# publish. Versions and tags are never created by hand.
+#
+# The bump is chosen, not derived: whether a change is a patch or a minor is a
+# judgement the CHANGELOG entry already makes in prose.
 on:
-  push:
-    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump"
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      dry_run:
+        description: "Dry run — shows the next version and release notes, changes nothing"
+        type: boolean
+        default: true
+
+# Two runs at once would read the same version and compute the same next one.
+# Not cancelling: a run cut off between the push and the publish leaves a tag
+# without a release.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
+  # The dispatch form offers every branch. Checked first, because the condition
+  # is known at dispatch and the test suite takes minutes to get to it.
+  guard:
+    name: Only main may release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reject any branch but main
+        if: github.ref_name != 'main'
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          echo "::error::Releases are made from 'main' only (chosen: '$REF_NAME')."
+          exit 1
+
   test:
+    needs: guard
     uses: ./.github/workflows/test.yml
 
   release:
     name: Build and publish
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # release commit, tag and GitHub release
     steps:
       - uses: actions/checkout@v7
 
-      # HACS shows the tag, the integration reports the manifest version — if
-      # the two drift apart, an update looks installed but is not. The card
-      # carries its own version and is bumped in the same step, so it is
-      # checked here too rather than being noticed months later.
-      - name: Check versions against tag
-        run: |
-          tag="${GITHUB_REF_NAME#v}"
-          read_version() { python -c "import json,sys;print(json.load(open(sys.argv[1]))['version'])" "$1"; }
-          for file in custom_components/lognotifier/manifest.json card/package.json; do
-            version=$(read_version "$file")
-            if [ "$tag" != "$version" ]; then
-              echo "Tag $GITHUB_REF_NAME does not match version $version in $file" >&2
-              exit 1
-            fi
-          done
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
 
-      # The description is versioned in CHANGELOG.md, so a release never goes
-      # out with nothing but a commit list. A missing section stops the tag.
+      # Raises the version in manifest.json, card/package.json and its lockfile
+      # and turns [Unreleased] into the version's section. Refuses when the
+      # three files disagree or the Unreleased section is empty.
+      - name: Bump version
+        id: bump
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          version=$(python .github/scripts/bump_version.py "$BUMP")
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
+            echo "::error::Tag v$version exists already."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # The CHANGELOG entry is the release description; the installation part
+      # is appended by the script.
       - name: Assemble release notes
-        run: python .github/scripts/release_notes.py "${GITHUB_REF_NAME#v}" release-notes.md
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: python .github/scripts/release_notes.py "$VERSION" release-notes.md
+
+      - name: Show what would be released
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          {
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "# Dry run: v$VERSION"
+              echo "Nothing was committed, tagged or published."
+            else
+              echo "# v$VERSION"
+            fi
+            echo
+            echo '```diff'
+            git diff
+            echo '```'
+            echo
+            cat release-notes.md
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/setup-node@v7
+        if: ${{ !inputs.dry_run }}
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: card/package-lock.json
 
       # The built card is not committed; it is created here and travels in the
-      # zip, because that is the only copy the HACS install ever sees.
-      - run: npm --prefix card ci
+      # zip, because that is the only copy the HACS install ever sees. Built
+      # before the push, so a failing build leaves no tag behind.
+      - if: ${{ !inputs.dry_run }}
+        run: npm --prefix card ci
       # LOGNOTIFIER_MINIFY is release-only: local builds stay readable.
-      - run: npm --prefix card run build
+      - if: ${{ !inputs.dry_run }}
+        run: npm --prefix card run build
         env:
           LOGNOTIFIER_MINIFY: "1"
 
       # HACS extracts the zip straight into custom_components/lognotifier, so
       # manifest.json has to sit at the root of the archive.
       - name: Build lognotifier.zip
+        if: ${{ !inputs.dry_run }}
         run: |
           cd custom_components/lognotifier
           zip -r "$GITHUB_WORKSPACE/lognotifier.zip" . -x '*__pycache__*' '*.pyc'
 
+      # [skip ci]: test.yml already ran on exactly this tree above. --atomic:
+      # either main and the tag both move, or neither does.
+      - name: Commit and tag
+        id: tag
+        if: ${{ !inputs.dry_run }}
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore(release): $VERSION [skip ci]"
+          git tag -a "v$VERSION" -m "Log Notifier $VERSION"
+          git push --atomic origin HEAD:main "v$VERSION"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Publish release
+        if: ${{ !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          gh release create "$GITHUB_REF_NAME" lognotifier.zip \
-            --title "Log Notifier ${GITHUB_REF_NAME#v}" \
+          gh release create "$TAG" lognotifier.zip \
+            --verify-tag \
+            --title "Log Notifier ${TAG#v}" \
             --notes-file release-notes.md
+
+      # The tag cannot be taken back from here, so say plainly what exists.
+      - name: Explain a half-finished release
+        if: failure() && steps.tag.outputs.tag != ''
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          echo "::error::$TAG and its release commit are on main, but the GitHub release is missing."
+          echo "Do not run the workflow again — it would create the next version."
+          echo "Build the zip locally and publish by hand:"
+          echo "  git checkout $TAG && LOGNOTIFIER_MINIFY=1 npm --prefix card run build"
+          echo "  python .github/scripts/release_notes.py ${TAG#v} notes.md"
+          echo "  (cd custom_components/lognotifier && zip -r ../../lognotifier.zip . -x '*__pycache__*' '*.pyc')"
+          echo "  gh release create $TAG lognotifier.zip --verify-tag --title 'Log Notifier ${TAG#v}' --notes-file notes.md"

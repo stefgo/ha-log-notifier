@@ -3,10 +3,10 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-The section of the version being tagged becomes the body of the GitHub release
-— `.github/workflows/release.yml` reads it from here and refuses to publish a
-tag that has no section. Installation instructions are appended by the workflow
-and do not belong in an entry.
+Entries are written under `[Unreleased]`. The release workflow turns that
+section into the version's section and uses it as the body of the GitHub
+release; it refuses to release when the section is empty. Installation
+instructions are appended by the workflow and do not belong in an entry.
 
 ## [Unreleased]
 
