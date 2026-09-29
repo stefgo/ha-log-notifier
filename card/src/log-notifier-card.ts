@@ -20,7 +20,7 @@ import {
 } from "./api";
 import { LEVELS, levelColor, levelIcon } from "./levels";
 import { toPlainText } from "./markdown";
-import { renderMarkdown, renderPlain } from "./render";
+import { renderBlocks, renderMarkdown, renderPlain } from "./render";
 import type {
   ChannelSummary,
   HomeAssistant,
@@ -526,7 +526,7 @@ export class LogNotifierCard extends LitElement {
             ? nothing
             : html`<div class="channel-preview">
                 <span class="dot" style=${`background:${levelColor(last.level)}`}></span>
-                ${toPlainText(last.title ?? last.content).slice(0, 90)}
+                ${toPlainText(previewText(last)).slice(0, 90)}
               </div>`}
         </div>
         <div class="channel-meta">
@@ -630,9 +630,14 @@ export class LogNotifierCard extends LitElement {
           <span class="time">${this._formatTime(message.ts)}</span>
         </div>
         <div class="body">
-          ${message.format === "plain"
-            ? renderPlain(message.content)
-            : renderMarkdown(message.content)}
+          ${!message.content
+            ? nothing
+            : message.format === "plain"
+              ? renderPlain(message.content)
+              : renderMarkdown(message.content)}
+          ${message.blocks?.length
+            ? renderBlocks(message.blocks, message.format === "plain")
+            : nothing}
         </div>
         ${message.tags?.length
           ? html`<div class="tags">
@@ -966,6 +971,30 @@ export class LogNotifierCard extends LitElement {
     .body a {
       color: var(--primary-color);
     }
+    /* Label/value grid: one block of equally wide rows; the sender decides
+       how many columns each row has. */
+    .body .fields {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin: 6px 0 2px;
+    }
+    .body .field-row {
+      display: grid;
+      grid-template-columns: repeat(var(--ln-columns, 1), minmax(0, 1fr));
+      gap: 12px;
+    }
+    .body .field-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--secondary-text-color);
+    }
+    .body .field-value p {
+      margin: 0;
+    }
+    .body .field-value .plain {
+      white-space: pre-wrap;
+    }
     .body .underline {
       text-decoration: underline;
     }
@@ -980,6 +1009,20 @@ export class LogNotifierCard extends LitElement {
       color: inherit;
     }
   `;
+}
+
+/** Text for the channel preview — a message may consist of blocks alone. */
+function previewText(message: LogMessage): string {
+  if (message.title) return message.title;
+  if (message.content) return message.content;
+  for (const block of message.blocks ?? []) {
+    if (block.type === "text") return block.text;
+  }
+  for (const block of message.blocks ?? []) {
+    const first = block.type === "fields" ? block.rows[0]?.[0] : undefined;
+    if (first) return [first.label, first.value].filter(Boolean).join(": ");
+  }
+  return "";
 }
 
 declare global {

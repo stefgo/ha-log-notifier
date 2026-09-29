@@ -305,3 +305,62 @@ def test_totals_provide_the_entity_fields():
     assert totals["channels_total"] == 2  # the disabled channel is missing
     assert totals["channels_with_unread"] == 2
     assert totals["total_messages"] == 2
+
+
+BLOCKS = [
+    {"type": "fields", "rows": [[{"label": "Job", "value": "vm-101"}]]},
+    {"type": "text", "text": "Datastore full"},
+]
+
+
+def test_blocks_survive_a_restart():
+    fake = FakeStore()
+    store = store_mod.MessageStore(fake)
+    store.set_channels([make_channel()])
+    store.add(
+        "backups", level="ERROR", content="", fmt=const.FORMAT_MARKDOWN, blocks=BLOCKS
+    )
+
+    restored = store_mod.MessageStore(FakeStore(fake.saved))
+    asyncio.run(restored.async_load())
+    restored.set_channels([make_channel()])
+    message = restored.messages("backups", limit=1)[0]
+    assert message.blocks == BLOCKS
+    assert message.to_dict()["blocks"] == BLOCKS
+
+
+def test_messages_without_blocks_stay_compact():
+    store, _ = make_store()
+    message = add(store, "INFO")
+    assert message.blocks == []
+    assert "blocks" not in message.to_dict()
+    # Rows stored before blocks existed simply have none.
+    assert models.Message.from_dict({"id": 1, "ts": 0, "content": "x"}).blocks == []
+
+
+def test_unknown_stored_block_types_are_skipped():
+    # Written by a newer version, read by this one: keep what is understood.
+    data = {
+        "id": 1,
+        "ts": 0,
+        "content": "x",
+        "blocks": [{"type": "divider"}, "junk", *BLOCKS],
+    }
+    assert models.Message.from_dict(data).blocks == BLOCKS
+
+
+def test_store_enforces_the_block_limits():
+    store, _ = make_store()
+    row = [{"label": "a", "value": "b"}] * 9
+    message = store.add(
+        "backups",
+        level="INFO",
+        content="c" * const.MAX_CONTENT_CHARS,
+        fmt=const.FORMAT_MARKDOWN,
+        blocks=[
+            {"type": "text", "text": "over budget"},
+            {"type": "fields", "rows": [row] * 3},
+        ],
+    )
+    assert [block["type"] for block in message.blocks] == ["fields"]
+    assert [len(r) for r in message.blocks[0]["rows"]] == [const.MAX_FIELDS_PER_ROW] * 3

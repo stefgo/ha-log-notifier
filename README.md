@@ -105,12 +105,13 @@ Response: `202 {"id": 17, "channel": "backups", "level": "ERROR"}`.
 
 | Field | Required | Meaning |
 | --- | --- | --- |
-| `content` | yes | Message body (`message`/`text` are accepted as well) |
+| `content` | yes, unless `blocks` are given | Message body (`message`/`text` are accepted as well) |
 | `level` | no | `ERROR`, `WARNING`, `INFO`, `TRACE` — default `INFO` |
 | `title` | no | Headline, also preferred for the push message |
 | `source` | no | Sending service |
 | `tags` | no | List of keywords |
 | `format` | no | `markdown` (default) or `plain` |
+| `blocks` | no | Text and label/value grids below the body, in any order, see [Blocks](#blocks) |
 | `timestamp` | no | Unix time or ISO 8601 (`2026-09-28T14:03:00+02:00`, `…Z`; no offset means UTC), in case the message is submitted after the fact |
 
 Foreign level names are translated: `crit`, `fatal`, `err` → `ERROR`,
@@ -128,6 +129,7 @@ query parameters `?level=`, `?source=` and `?title=`; with JSON, `level` and
 | `content` | 8000 characters | truncated and marked with `…` |
 | `title` / `source` | 200 / 100 characters | truncated |
 | `tags` | 10 items of 40 characters | the surplus is dropped |
+| `blocks` | 20 blocks; text blocks share the 8000 characters with `content`; per grid 10 rows of up to 5 fields, 25 fields across all grids; label 100, value 1000 characters | the surplus is dropped, texts are truncated |
 | Throughput | 60/min per channel, bursts up to 20 | `429`, the message is discarded |
 
 Other error cases: `401` unknown or disabled token, `400` unusable payload or
@@ -142,6 +144,43 @@ HTML — the card builds its elements from the parsed tree itself.
 
 `format: "plain"` switches interpretation off; text bodies without JSON
 automatically land in the channel as `plain`.
+
+### Blocks
+
+`blocks` carries structure below the body: a list of text blocks and
+label/value grids, shown in exactly this order, so text and fields can
+alternate freely. A grid works like the fields of a Discord embed — every field
+shows its `label` on top and its `value` underneath. Its `rows` are a list of
+rows, each a list of fields; the row decides how many fields sit side by side,
+and rows may differ in that. A grid is one block: every row spans the full
+width, its fields share it evenly.
+
+```json
+{
+  "level": "ERROR",
+  "title": "Backup failed",
+  "content": "Nightly job on **pve1**",
+  "blocks": [
+    {"type": "fields", "rows": [
+      [{"label": "Job", "value": "vm-101"}, {"label": "Duration", "value": "12 min"}, {"label": "Exit", "value": "`2`"}],
+      [{"label": "Target", "value": "pbs01:datastore"}]
+    ]},
+    {"type": "text", "text": "Cause: **datastore full**"},
+    {"rows": [[{"label": "Free", "value": "0 B"}, {"label": "Used", "value": "2 TB"}]]},
+    "Next attempt at 03:00."
+  ]
+}
+```
+
+| Block | Form | Shorthand |
+| --- | --- | --- |
+| Text | `{"type": "text", "text": "…"}` | a bare string, or an object with `text` and no `type` |
+| Grid | `{"type": "fields", "rows": [[{"label": "…", "value": "…"}, …], …]}` | an object with `rows` and no `type`; a bare field object in place of a row is a row of one |
+
+`content` stays and is shown first, like an implicit leading text block; with
+`blocks` present it may be left out. Text blocks and values follow `format` —
+markdown by default — while labels are always plain text. An unknown block
+type is refused with `400`; empty blocks, rows and fields are dropped.
 
 ## Entities per channel
 
@@ -459,13 +498,13 @@ conditions:
 ```
 
 Event data: `channel_id`, `channel_name`, `message_id`, `level`, `content`,
-`title`, `source`, `tags`, `ts`.
+`title`, `source`, `tags`, `blocks`, `ts`.
 
 ## Services
 
 | Service | Fields | Purpose |
 | --- | --- | --- |
-| `lognotifier.send` | `channel_id`, `content`, `level`, `title`, `source`, `tags`, `format` | File a message from an HA automation — the same path as the ingest, only without HTTP |
+| `lognotifier.send` | `channel_id`, `content`, `level`, `title`, `source`, `tags`, `format`, `blocks` | File a message from an HA automation — the same path as the ingest, only without HTTP |
 | `lognotifier.mark_read` | `channel_id` (optional), `up_to_id` (optional) | Set the read position; without a channel the call applies to all |
 | `lognotifier.clear` | `channel_id` | Empty a channel |
 

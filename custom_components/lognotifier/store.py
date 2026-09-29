@@ -21,7 +21,7 @@ from .const import (
     MAX_TITLE_CHARS,
     STORAGE_SAVE_DELAY,
 )
-from .models import Channel, Message, severity
+from .models import Block, Channel, Message, clamp_blocks, severity
 
 
 class StoreProtocol(Protocol):
@@ -149,17 +149,20 @@ class MessageStore:
         tags: list[str] | None = None,
         fmt: str,
         ts: float | None = None,
+        blocks: list[Block] | None = None,
     ) -> Message:
         """Store a message and return it with its assigned ID."""
+        content = content[:MAX_CONTENT_CHARS]
         message = Message(
             id=self._next_id,
             ts=ts if ts is not None else time.time(),
             level=level,
-            content=content[:MAX_CONTENT_CHARS],
+            content=content,
             title=title[:MAX_TITLE_CHARS] if title else None,
             source=source[:MAX_SOURCE_CHARS] if source else None,
             tags=[str(tag)[:MAX_TAG_CHARS] for tag in (tags or [])][:MAX_TAGS],
             format=fmt,
+            blocks=clamp_blocks(blocks or [], MAX_CONTENT_CHARS - len(content)),
         )
         self._next_id += 1
         self._buffer(channel_id).messages.append(message)

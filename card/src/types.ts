@@ -2,6 +2,17 @@
 
 export type Level = "ERROR" | "WARNING" | "INFO" | "TRACE";
 
+/** One cell of a message's label/value grid. */
+export interface MessageField {
+  label: string;
+  value: string;
+}
+
+/** A block below the content; the list keeps the sender's order. */
+export type MessageBlock =
+  | { type: "text"; text: string }
+  | { type: "fields"; rows: MessageField[][] };
+
 export interface LogMessage {
   id: number;
   ts: number;
@@ -11,6 +22,8 @@ export interface LogMessage {
   source?: string;
   tags?: string[];
   format?: "markdown" | "plain";
+  /** Text and field grids below the content, in any order. */
+  blocks?: MessageBlock[];
 }
 
 export interface ChannelSummary {

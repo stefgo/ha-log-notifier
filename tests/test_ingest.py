@@ -126,3 +126,104 @@ def test_ratelimit_separates_channels():
     assert limiter.allow("a", 0.0) is True
     assert limiter.allow("a", 0.0) is False
     assert limiter.allow("b", 0.0) is True
+
+
+JOB = {"label": "Job", "value": "vm-101"}
+
+
+def test_blocks_keep_their_order():
+    parsed = ingest.parse_payload(
+        {
+            "content": "Nightly job",
+            "blocks": [
+                {"type": "fields", "rows": [[JOB, {"label": "Exit", "value": 2}]]},
+                {"type": "text", "text": " Datastore **full** "},
+                {"type": "fields", "rows": [[{"label": "Free", "value": "0 B"}]]},
+            ],
+        }
+    )
+    assert parsed.blocks == [
+        {"type": "fields", "rows": [[JOB, {"label": "Exit", "value": "2"}]]},
+        {"type": "text", "text": "Datastore **full**"},
+        {"type": "fields", "rows": [[{"label": "Free", "value": "0 B"}]]},
+    ]
+
+
+def test_block_shorthands():
+    parsed = ingest.parse_payload(
+        {
+            "content": "a",
+            "blocks": ["plain string", {"rows": [JOB]}, {"text": "no type"}],
+        }
+    )
+    assert parsed.blocks == [
+        {"type": "text", "text": "plain string"},
+        # A bare object in place of a row is a row of one.
+        {"type": "fields", "rows": [[JOB]]},
+        {"type": "text", "text": "no type"},
+    ]
+
+
+def test_blocks_alone_make_a_message():
+    parsed = ingest.parse_payload({"blocks": [{"rows": [[JOB]]}]})
+    assert parsed.content == ""
+    assert parsed.blocks == [{"type": "fields", "rows": [[JOB]]}]
+
+
+def test_empty_blocks_do_not_replace_content():
+    with pytest.raises(ingest.PayloadError):
+        ingest.parse_payload(
+            {"blocks": ["  ", {"rows": [[{"label": " ", "value": ""}], []]}]}
+        )
+
+
+def test_malformed_blocks_are_rejected():
+    for blocks in (
+        "Job: vm-101",
+        [42],
+        [{"type": "divider"}],
+        [{"label": "Job"}],
+        [{"type": "fields", "rows": "Job"}],
+        [{"rows": [["Job"]]}],
+        [{"rows": [[{"label": "Job", "value": {"nested": 1}}]]}],
+        [{"text": ["a", "b"]}],
+    ):
+        with pytest.raises(ingest.PayloadError):
+            ingest.parse_payload({"content": "a", "blocks": blocks})
+
+
+def test_text_blocks_share_the_content_budget():
+    content = "c" * (const.MAX_CONTENT_CHARS - 10)
+    parsed = ingest.parse_payload(
+        {"content": content, "blocks": ["t" * 8, "t" * 8, {"rows": [[JOB]]}, "t"]}
+    )
+    # The grid survives the exhausted budget, the text after it does not.
+    assert parsed.blocks == [
+        {"type": "text", "text": "t" * 8},
+        {"type": "text", "text": "t" * 2},
+        {"type": "fields", "rows": [[JOB]]},
+    ]
+
+
+def test_field_limits_count_across_blocks():
+    row = [{"label": "L" * 500, "value": "V" * 5000} for _ in range(8)]
+    grid = {"rows": [row] * 20}
+    parsed = ingest.parse_payload({"content": "a", "blocks": [grid] * 4})
+    assert parsed.blocks is not None
+    grids = [block["rows"] for block in parsed.blocks]
+    assert all(len(rows) <= const.MAX_FIELD_ROWS for rows in grids)
+    assert all(len(r) <= const.MAX_FIELDS_PER_ROW for rows in grids for r in rows)
+    assert sum(len(r) for rows in grids for r in rows) == const.MAX_FIELDS
+    first = grids[0][0][0]
+    assert len(first["label"]) == const.MAX_FIELD_LABEL_CHARS
+    assert len(first["value"]) == const.MAX_FIELD_VALUE_CHARS
+
+
+def test_block_count_is_limited():
+    parsed = ingest.parse_payload({"content": "a", "blocks": ["t"] * 50})
+    assert parsed.blocks is not None
+    assert len(parsed.blocks) == const.MAX_BLOCKS
+
+
+def test_without_blocks_nothing_changes():
+    assert ingest.parse_payload({"content": "a"}).blocks is None

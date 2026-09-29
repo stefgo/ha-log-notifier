@@ -82,12 +82,13 @@
       "description": "Adds a message to a channel.",
       "fields": {
         "channel_id": { "name": "Channel", "description": "ID of the channel." },
-        "content": { "name": "Content", "description": "Message text, Discord-style markdown." },
+        "content": { "name": "Content", "description": "Message text, Discord-style markdown. Optional when blocks are given." },
         "level": { "name": "Level", "description": "Log level of the message." },
         "title": { "name": "Title", "description": "Optional headline." },
         "source": { "name": "Source", "description": "Sending service." },
         "tags": { "name": "Tags", "description": "Optional list of tags." },
-        "format": { "name": "Format", "description": "markdown or plain." }
+        "format": { "name": "Format", "description": "markdown or plain." },
+        "blocks": { "name": "Blocks", "description": "Text and label/value grids below the content, in any order: a text block is a string, a grid is an object with rows." }
       }
     },
     "mark_read": {

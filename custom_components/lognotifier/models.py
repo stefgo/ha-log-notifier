@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import copy
 import secrets
 import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
 from .const import (
+    BLOCK_FIELDS,
+    BLOCK_TEXT,
     CONF_BADGE_LEVELS,
     CONF_ENABLED,
     CONF_ICON,
@@ -26,8 +29,21 @@ from .const import (
     LEVEL_ORDER,
     LEVELS,
     MAX_AGE_DAYS_LIMIT,
+    MAX_BLOCKS,
+    MAX_CONTENT_CHARS,
+    MAX_FIELD_LABEL_CHARS,
+    MAX_FIELD_ROWS,
+    MAX_FIELD_VALUE_CHARS,
+    MAX_FIELDS,
+    MAX_FIELDS_PER_ROW,
     MAX_MESSAGES_LIMIT,
 )
+
+#: Label/value grid: a list of rows, each a list of ``{"label", "value"}``.
+Rows = list[list[dict[str, str]]]
+#: One block below the content: ``{"type": "text", "text": …}`` or
+#: ``{"type": "fields", "rows": …}``.
+Block = dict[str, Any]
 
 TOKEN_BYTES = 24
 
@@ -168,6 +184,66 @@ class Channel:
         }
 
 
+def clamp_blocks(blocks: Any, text_budget: int = MAX_CONTENT_CHARS) -> list[Block]:
+    """Bring a block list into shape and within its limits.
+
+    Expects the normalized form (every block with its ``type``) and is lenient
+    on purpose: it serves both freshly parsed payloads and storage contents, so
+    malformed entries and unknown block types are skipped rather than raised —
+    a block type added later must not break messages on a downgrade. Strict
+    validation of foreign input is ``ingest``'s job.
+
+    ``text_budget`` is what the content left of ``MAX_CONTENT_CHARS``: text
+    blocks share it, and once it is used up further text is dropped.
+    """
+    result: list[Block] = []
+    if not isinstance(blocks, list):
+        return result
+    budget = max(0, text_budget)
+    remaining_fields = MAX_FIELDS
+    for block in blocks:
+        if len(result) >= MAX_BLOCKS:
+            break
+        if not isinstance(block, dict):
+            continue
+        kind = block.get("type")
+        if kind == BLOCK_TEXT:
+            text = str(block.get("text") or "")[:budget]
+            if text:
+                result.append({"type": BLOCK_TEXT, "text": text})
+                budget -= len(text)
+        elif kind == BLOCK_FIELDS:
+            rows = _clamp_rows(block.get("rows"), remaining_fields)
+            if rows:
+                result.append({"type": BLOCK_FIELDS, "rows": rows})
+                remaining_fields -= sum(len(row) for row in rows)
+    return result
+
+
+def _clamp_rows(rows: Any, remaining: int) -> Rows:
+    """The rows of one grid, with at most ``remaining`` fields left in total."""
+    result: Rows = []
+    if not isinstance(rows, list):
+        return result
+    for row in rows:
+        if len(result) >= MAX_FIELD_ROWS or remaining <= 0:
+            break
+        if not isinstance(row, list):
+            continue
+        kept = [
+            {
+                "label": str(item.get("label") or "")[:MAX_FIELD_LABEL_CHARS],
+                "value": str(item.get("value") or "")[:MAX_FIELD_VALUE_CHARS],
+            }
+            for item in row
+            if isinstance(item, dict) and (item.get("label") or item.get("value"))
+        ][: min(MAX_FIELDS_PER_ROW, remaining)]
+        if kept:
+            result.append(kept)
+            remaining -= len(kept)
+    return result
+
+
 def _clamp(value: Any, default: int, minimum: int, maximum: int) -> int:
     """Keep a numeric value within its bounds; nonsense falls back to the default."""
     try:
@@ -189,6 +265,8 @@ class Message:
     source: str | None = None
     tags: list[str] = field(default_factory=list)
     format: str = FORMAT_MARKDOWN
+    #: Text and field grids shown below ``content``, in this order.
+    blocks: list[Block] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         """Compact representation for storage, WebSocket and event."""
@@ -206,19 +284,23 @@ class Message:
             data["tags"] = list(self.tags)
         if self.format != FORMAT_MARKDOWN:
             data["format"] = self.format
+        if self.blocks:
+            data["blocks"] = copy.deepcopy(self.blocks)
         return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Message:
         """Read a message back from storage."""
         fmt = data.get("format")
+        content = str(data.get("content") or "")
         return cls(
             id=int(data["id"]),
             ts=float(data["ts"]),
             level=str(data.get("level") or LEVEL_INFO),
-            content=str(data.get("content") or ""),
+            content=content,
             title=data.get("title"),
             source=data.get("source"),
             tags=list(data.get("tags") or []),
             format=fmt if fmt in (FORMAT_MARKDOWN, FORMAT_PLAIN) else FORMAT_MARKDOWN,
+            blocks=clamp_blocks(data.get("blocks"), MAX_CONTENT_CHARS - len(content)),
         )

@@ -111,6 +111,7 @@ class LogNotifierRuntime:
             tags=parsed.tags,
             fmt=parsed.format,
             ts=parsed.ts,
+            blocks=parsed.blocks,
         )
         self._changed(channel.id)
         self.hass.bus.async_fire(

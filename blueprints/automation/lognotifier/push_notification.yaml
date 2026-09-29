@@ -110,8 +110,18 @@ actions:
             title: >
               {{ trigger.event.data.channel_name }} · {{ level }}
             message: >
+              {#- A message may consist of blocks alone; the first text block,
+                  else the first field, then stands in for the content. -#}
+              {%- set blocks = trigger.event.data.blocks | default([]) -%}
+              {%- set texts = blocks | selectattr('type', 'eq', 'text')
+                  | map(attribute='text') | list -%}
+              {%- set grids = blocks | selectattr('type', 'eq', 'fields')
+                  | map(attribute='rows') | list -%}
               {%- set body = trigger.event.data.title if trigger.event.data.title
-                  else trigger.event.data.content -%}
+                  else trigger.event.data.content if trigger.event.data.content
+                  else texts[0] if texts
+                  else [grids[0][0][0].label, grids[0][0][0].value] | select | join(': ') if grids
+                  else '' -%}
               {#- Strip code blocks and formatting; inside the block scalar
                   backslashes stay literal, hence a pattern without them. -#}
               {{ body | regex_replace('```[^`]*```', ' ')

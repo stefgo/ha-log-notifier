@@ -8,6 +8,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 
 from .const import (
+    ATTR_BLOCKS,
     ATTR_CHANNEL_ID,
     ATTR_CONTENT,
     ATTR_FORMAT,
@@ -21,8 +22,9 @@ from .const import (
     FORMATS,
     LEVEL_INFO,
     LEVEL_ORDER,
+    MAX_CONTENT_CHARS,
 )
-from .ingest import ParsedMessage
+from .ingest import ParsedMessage, PayloadError, parse_blocks
 from .runtime import LogNotifierRuntime
 
 SERVICE_SEND = "send"
@@ -32,12 +34,15 @@ SERVICE_CLEAR = "clear"
 SEND_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_CHANNEL_ID): cv.string,
-        vol.Required(ATTR_CONTENT): cv.string,
+        # Required unless `blocks` carry the message — checked in the handler,
+        # a schema cannot express "one of the two".
+        vol.Optional(ATTR_CONTENT, default=""): cv.string,
         vol.Optional(ATTR_LEVEL, default=LEVEL_INFO): vol.In(LEVEL_ORDER),
         vol.Optional(ATTR_TITLE): cv.string,
         vol.Optional(ATTR_SOURCE): cv.string,
         vol.Optional(ATTR_TAGS): vol.All(cv.ensure_list, [cv.string]),
         vol.Optional(ATTR_FORMAT, default=FORMAT_MARKDOWN): vol.In(FORMATS),
+        vol.Optional(ATTR_BLOCKS): cv.ensure_list,
     }
 )
 
@@ -71,15 +76,25 @@ def async_setup_services(hass: HomeAssistant) -> None:
             raise ServiceValidationError(
                 f"Unknown channel: {call.data[ATTR_CHANNEL_ID]}"
             )
+        content = call.data[ATTR_CONTENT][:MAX_CONTENT_CHARS]
+        try:
+            blocks = parse_blocks(
+                call.data.get(ATTR_BLOCKS), text_budget=MAX_CONTENT_CHARS - len(content)
+            )
+        except PayloadError as err:
+            raise ServiceValidationError(str(err)) from err
+        if not content.strip() and not blocks:
+            raise ServiceValidationError("Either 'content' or 'blocks' is required")
         runtime.publish(
             channel,
             ParsedMessage(
                 level=call.data[ATTR_LEVEL],
-                content=call.data[ATTR_CONTENT],
+                content=content,
                 title=call.data.get(ATTR_TITLE),
                 source=call.data.get(ATTR_SOURCE),
                 tags=call.data.get(ATTR_TAGS),
                 format=call.data[ATTR_FORMAT],
+                blocks=blocks or None,
             ),
         )
 
