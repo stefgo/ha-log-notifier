@@ -111,7 +111,7 @@ Response: `202 {"id": 17, "channel": "backups", "level": "ERROR"}`.
 | `source` | no | Sending service |
 | `tags` | no | List of keywords |
 | `format` | no | `markdown` (default) or `plain` |
-| `blocks` | no | Text and label/value grids below the body, in any order, see [Blocks](#blocks) |
+| `blocks` | no | Text, label/value grids and tables below the body, in any order, see [Blocks](#blocks) |
 | `timestamp` | no | Unix time or ISO 8601 (`2026-09-28T14:03:00+02:00`, `…Z`; no offset means UTC), in case the message is submitted after the fact |
 
 Foreign level names are translated: `crit`, `fatal`, `err` → `ERROR`,
@@ -129,7 +129,7 @@ query parameters `?level=`, `?source=` and `?title=`; with JSON, `level` and
 | `content` | 8000 characters | truncated and marked with `…` |
 | `title` / `source` | 200 / 100 characters | truncated |
 | `tags` | 10 items of 40 characters | the surplus is dropped |
-| `blocks` | 20 blocks; text blocks share the 8000 characters with `content`; per grid 10 rows of up to 5 fields, 25 fields across all grids; label 100, value 1000 characters | the surplus is dropped, texts are truncated |
+| `blocks` | 20 blocks; text blocks share the 8000 characters with `content`; per grid 10 rows of up to 5 fields and 6 columns, 25 fields across all grids; label 100, value 1000 characters; per table 10 columns and 50 rows, 250 cells across all tables, 200 characters per cell | the surplus is dropped, texts are truncated |
 | Throughput | 60/min per channel, bursts up to 20 | `429`, the message is discarded |
 
 Other error cases: `401` unknown or disabled token, `400` unusable payload or
@@ -147,8 +147,8 @@ automatically land in the channel as `plain`.
 
 ### Blocks
 
-`blocks` carries structure below the body: a list of text blocks and
-label/value grids, shown in exactly this order, so text and fields can
+`blocks` carries structure below the body: a list of text blocks,
+label/value grids and tables, shown in exactly this order, so they can
 alternate freely. A grid works like the fields of a Discord embed — every field
 shows its `label` on top and its `value` underneath. Its `rows` are a list of
 rows, each a list of fields; the row decides how many fields sit side by side,
@@ -175,12 +175,69 @@ width, its fields share it evenly.
 | Block | Form | Shorthand |
 | --- | --- | --- |
 | Text | `{"type": "text", "text": "…"}` | a bare string, or an object with `text` and no `type` |
-| Grid | `{"type": "fields", "rows": [[{"label": "…", "value": "…"}, …], …]}` | an object with `rows` and no `type`; a bare field object in place of a row is a row of one |
+| Grid | `{"type": "fields", "rows": [[{"label": "…", "value": "…", "span": 1}, …], …]}` | an object with `rows` and no `type`; a bare field object in place of a row is a row of one |
+| Table | `{"type": "table", "columns": ["…", …], "rows": [["…", …], …]}` | an object with `columns` and no `type`; `{"table": [{…}, …]}` for a list of objects |
 
 `content` stays and is shown first, like an implicit leading text block; with
 `blocks` present it may be left out. Text blocks and values follow `format` —
 markdown by default — while labels are always plain text. An unknown block
 type is refused with `400`; empty blocks, rows and fields are dropped.
+
+#### Wider fields
+
+A field with `"span": n` takes `n` columns. A row has as many columns as the
+spans of its fields add up to — a field without `span` counts as one — so rows
+with the same sum line up under each other:
+
+```json
+{"type": "fields", "rows": [
+  [{"label": "Client", "value": "fileserver"}, {"label": "Hostname", "value": "fileserver.example.net", "span": 2}],
+  [{"label": "Start", "value": "02:00"}, {"label": "End", "value": "02:14"}, {"label": "Duration", "value": "877 s"}],
+  [{"label": "Snapshot", "value": "host/fileserver/2026-09-28T02:00:00Z"}]
+]}
+```
+
+```
+┌──────────┬─────────────────────────────┐
+│ Client   │ Hostname                    │
+├──────────┼──────────┬──────────────────┤
+│ Start    │ End      │ Duration         │
+├──────────┴──────────┴──────────────────┤
+│ Snapshot                               │
+└────────────────────────────────────────┘
+```
+
+A field alone in its row fills it anyway. `span` is a whole number from 1;
+anything else is refused with `400`. A row adds up to at most 6 columns: a
+span that does not fit is shortened so that every field after it keeps one
+column.
+
+A table has one shared head over rows of equal width, where a grid gives every
+field its own label. Use it for many similar items, a grid for a few facts:
+
+```json
+{
+  "title": "Backups",
+  "blocks": [
+    {"type": "table",
+     "columns": ["Host", "Status", {"label": "Duration", "align": "right"}],
+     "rows": [["pve1", "ok", "12 min"], ["pbs01", "**failed**", "—"]]},
+    {"table": [{"disk": "sda", "temp": 38}, {"disk": "sdb", "temp": 41}]}
+  ]
+}
+```
+
+- `columns` is a list of labels or `{"label": "…", "align": "left|center|right"}`
+  objects; any other `align` is refused with `400`.
+- A row is a list of cells, or an object whose keys name the columns. Without
+  `columns` the head is taken from the keys, in the order they first appear;
+  rows of lists without `columns` give a table without a head.
+- Rows are padded or cut to the number of columns, empty rows are dropped.
+- Cells are text, numbers, booleans or `null`; anything nested is refused with
+  `400`. With markdown they allow inline formatting — bold, italic, code,
+  links, spoilers — but no lists or code blocks. The head is plain text.
+- A table spans the full width of the card, like a grid; one wider than the
+  card scrolls sideways.
 
 ## Entities per channel
 

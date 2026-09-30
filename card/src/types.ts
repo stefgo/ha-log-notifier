@@ -6,12 +6,22 @@ export type Level = "ERROR" | "WARNING" | "INFO" | "TRACE";
 export interface MessageField {
   label: string;
   value: string;
+  /** Columns the field takes; left out for one. */
+  span?: number;
+}
+
+/** One column of a table head; without `align` the column is left-aligned. */
+export interface TableColumn {
+  label: string;
+  align?: "left" | "center" | "right";
 }
 
 /** A block below the content; the list keeps the sender's order. */
 export type MessageBlock =
   | { type: "text"; text: string }
-  | { type: "fields"; rows: MessageField[][] };
+  | { type: "fields"; rows: MessageField[][] }
+  /** Every row has one cell per column; `columns` is empty for a headless table. */
+  | { type: "table"; columns: TableColumn[]; rows: string[][] };
 
 export interface LogMessage {
   id: number;
@@ -22,7 +32,7 @@ export interface LogMessage {
   source?: string;
   tags?: string[];
   format?: "markdown" | "plain";
-  /** Text and field grids below the content, in any order. */
+  /** Text, field grids and tables below the content, in any order. */
   blocks?: MessageBlock[];
 }
 

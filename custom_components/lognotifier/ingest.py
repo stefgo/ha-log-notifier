@@ -9,6 +9,7 @@ from typing import Any
 
 from .const import (
     BLOCK_FIELDS,
+    BLOCK_TABLE,
     BLOCK_TEXT,
     FORMAT_MARKDOWN,
     FORMAT_PLAIN,
@@ -17,8 +18,9 @@ from .const import (
     MAX_TAGS,
     RATE_LIMIT_BURST,
     RATE_LIMIT_PER_MINUTE,
+    TABLE_ALIGNS,
 )
-from .models import Block, Rows, clamp_blocks, normalize_level
+from .models import Block, Columns, Rows, clamp_blocks, normalize_level
 
 
 @dataclass
@@ -114,12 +116,16 @@ def parse_payload(
 def parse_blocks(value: Any, *, text_budget: int = MAX_CONTENT_CHARS) -> list[Block]:
     """Validate the blocks shown below the content, in their order.
 
-    A block is ``{"type": "text", "text": …}`` or ``{"type": "fields",
-    "rows": …}``. Shorthands: a bare string is a text block, an object without
-    ``type`` is a grid if it has ``rows`` and a text block if it has ``text``.
-    ``rows`` is a list of rows, each a list of ``{"label", "value"}`` objects —
-    the row decides how many fields sit side by side, and a bare object in
-    place of a row counts as a row with one field.
+    A block is ``{"type": "text", "text": …}``, ``{"type": "fields",
+    "rows": …}`` or ``{"type": "table", "columns": …, "rows": …}``.
+    Shorthands: a bare string is a text block; an object without ``type`` is a
+    table if it has ``table`` (its rows) or ``columns``, a grid if it has
+    ``rows`` and a text block if it has ``text``. A grid's ``rows`` is a list
+    of rows, each a list of ``{"label", "value"}`` objects — the row decides
+    how many fields sit side by side, and a bare object in place of a row
+    counts as a row with one field. A field's optional ``span`` makes it
+    several columns wide; a row has as many columns as its spans add up to.
+    See ``_parse_table`` for tables.
 
     Wrong types are refused; empty blocks, rows and fields are dropped, and
     whatever exceeds the limits is cut off, like surplus ``tags``. Text blocks
@@ -136,9 +142,14 @@ def parse_blocks(value: Any, *, text_budget: int = MAX_CONTENT_CHARS) -> list[Bl
         if not isinstance(item, dict):
             raise PayloadError("Each block must be a text or an object")
         kind = item.get("type")
+        if kind is None and "table" in item:
+            item = {**item, "rows": item["table"]}
+            kind = BLOCK_TABLE
         if kind is None:
             kind = (
-                BLOCK_FIELDS
+                BLOCK_TABLE
+                if "columns" in item
+                else BLOCK_FIELDS
                 if "rows" in item
                 else BLOCK_TEXT
                 if "text" in item
@@ -148,6 +159,8 @@ def parse_blocks(value: Any, *, text_budget: int = MAX_CONTENT_CHARS) -> list[Bl
             blocks.append({"type": BLOCK_TEXT, "text": _block_text(item.get("text"))})
         elif kind == BLOCK_FIELDS:
             blocks.append({"type": BLOCK_FIELDS, "rows": _parse_rows(item.get("rows"))})
+        elif kind == BLOCK_TABLE:
+            blocks.append(_parse_table(item))
         else:
             raise PayloadError(f"Unknown block type: {kind!r}")
     return clamp_blocks(blocks, text_budget)
@@ -168,14 +181,88 @@ def _parse_rows(value: Any) -> Rows:
                 raise PayloadError(
                     "Each field must be an object with 'label' and 'value'"
                 )
-            parsed_row.append(
-                {
-                    "label": _block_text(item.get("label")),
-                    "value": _block_text(item.get("value")),
-                }
-            )
+            parsed: dict[str, Any] = {
+                "label": _block_text(item.get("label")),
+                "value": _block_text(item.get("value")),
+            }
+            span = item.get("span")
+            if span is not None:
+                parsed["span"] = _parse_span(span)
+            parsed_row.append(parsed)
         rows.append(parsed_row)
     return rows
+
+
+def _parse_span(value: Any) -> int:
+    """How many columns a field spans: a whole number from 1. One too wide for
+    its row is not refused but shortened by ``clamp_blocks``."""
+    if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+        raise PayloadError("Field 'span' must be a whole number of at least 1")
+    return value
+
+
+def _parse_table(item: dict[str, Any]) -> Block:
+    """One table block: a shared head over rows of cells.
+
+    ``columns`` is optional; each column is a label or ``{"label", "align"}``
+    with ``align`` one of ``left``, ``center``, ``right``. A row is a list of
+    cells, or an object whose keys name the columns — without ``columns`` the
+    head is then derived from all keys in the order they first appear. Rows
+    of lists and no ``columns`` give a table without a head. Cells are text,
+    numbers, booleans or null; padding and limits are ``clamp_blocks``' job.
+    """
+    raw_rows = item.get("rows")
+    if not isinstance(raw_rows, list):
+        raise PayloadError("Table 'rows' must be a list of rows")
+    for raw_row in raw_rows:
+        if not isinstance(raw_row, list | dict):
+            raise PayloadError("Each table row must be a list of cells or an object")
+    raw_columns = item.get("columns")
+    columns: Columns = []
+    if raw_columns is None:
+        labels: list[str] = []
+        for raw_row in raw_rows:
+            if isinstance(raw_row, dict):
+                labels += [str(key) for key in raw_row if str(key) not in labels]
+        columns = [{"label": label} for label in labels]
+    elif isinstance(raw_columns, list):
+        columns = [_parse_column(raw) for raw in raw_columns]
+    else:
+        raise PayloadError("Table 'columns' must be a list")
+    rows = []
+    for raw_row in raw_rows:
+        if isinstance(raw_row, dict):
+            by_label = {str(key): value for key, value in raw_row.items()}
+            rows.append([_cell_text(by_label.get(col["label"])) for col in columns])
+        else:
+            rows.append([_cell_text(cell) for cell in raw_row])
+    return {"type": BLOCK_TABLE, "columns": columns, "rows": rows}
+
+
+def _parse_column(value: Any) -> dict[str, str]:
+    """One column of a table head: a bare label or ``{"label", "align"}``."""
+    if not isinstance(value, dict):
+        return {"label": _block_text(value)}
+    column = {"label": _block_text(value.get("label"))}
+    align = value.get("align")
+    if align is not None:
+        if not isinstance(align, str) or align.lower() not in TABLE_ALIGNS:
+            raise PayloadError(
+                f"Column 'align' must be one of {', '.join(TABLE_ALIGNS)}"
+            )
+        column["align"] = align.lower()
+    return column
+
+
+def _cell_text(value: Any) -> str:
+    """A table cell as text; booleans are spelled like in JSON."""
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict | list):
+        raise PayloadError("Table cells must be text, numbers or booleans")
+    return str(value).strip()
 
 
 def _block_text(value: Any) -> str:

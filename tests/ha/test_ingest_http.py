@@ -83,6 +83,40 @@ async def test_unknown_block_type_is_reported(
     assert response.status == 400
 
 
+async def test_json_table_is_stored(
+    hass: HomeAssistant, setup_entry, hass_client_no_auth
+) -> None:
+    """A list of objects becomes a table with a head derived from its keys."""
+    client = await hass_client_no_auth()
+
+    response = await client.post(
+        URL, json={"blocks": [{"table": [{"host": "nas", "ms": 12}, {"host": "pi"}]}]}
+    )
+
+    assert response.status == 202
+    message = setup_entry.runtime_data.store.messages("backups")[0]
+    assert message.blocks == [
+        {
+            "type": "table",
+            "columns": [{"label": "host"}, {"label": "ms"}],
+            "rows": [["nas", "12"], ["pi", ""]],
+        }
+    ]
+
+
+async def test_nested_table_cell_is_reported(
+    hass: HomeAssistant, setup_entry, hass_client_no_auth
+) -> None:
+    """A cell holding a structure is refused rather than stringified."""
+    client = await hass_client_no_auth()
+
+    response = await client.post(
+        URL, json={"content": "a", "blocks": [{"table": [{"host": {"name": "nas"}}]}]}
+    )
+
+    assert response.status == 400
+
+
 async def test_plain_text_takes_level_and_source_from_the_query(
     hass: HomeAssistant, setup_entry, hass_client_no_auth
 ) -> None:

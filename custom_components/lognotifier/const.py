@@ -97,16 +97,24 @@ MAX_TITLE_CHARS = 200
 MAX_SOURCE_CHARS = 100
 MAX_TAGS = 10
 MAX_TAG_CHARS = 40
-# Blocks below the content: text and label/value grids in any order. Text
-# blocks share MAX_CONTENT_CHARS with the content, the field cap counts across
-# all grids. Rows carry their own column count, so the per-row cap keeps a
-# single row readable on a phone.
+# Blocks below the content: text, label/value grids and tables in any order.
+# Text blocks share MAX_CONTENT_CHARS with the content, the field cap counts
+# across all grids and the cell cap across all tables. Rows carry their own
+# column count, so the per-row cap keeps a single row readable on a phone; a
+# table scrolls sideways instead, hence its wider column cap. A field may span
+# several columns; the spans of a row add up to its column count, which
+# MAX_GRID_COLUMNS caps for the same reason.
 MAX_BLOCKS = 20
 MAX_FIELD_ROWS = 10
 MAX_FIELDS_PER_ROW = 5
+MAX_GRID_COLUMNS = 6
 MAX_FIELDS = 25
 MAX_FIELD_LABEL_CHARS = 100
 MAX_FIELD_VALUE_CHARS = 1000
+MAX_TABLE_COLUMNS = 10
+MAX_TABLE_ROWS = 50
+MAX_TABLE_CELLS = 250
+MAX_TABLE_CELL_CHARS = 200
 
 RATE_LIMIT_PER_MINUTE = 60
 RATE_LIMIT_BURST = 20
@@ -117,6 +125,11 @@ FORMATS = (FORMAT_MARKDOWN, FORMAT_PLAIN)
 
 BLOCK_TEXT = "text"
 BLOCK_FIELDS = "fields"
+BLOCK_TABLE = "table"
+
+# Column alignment of a table; "left" is the default and never stored.
+ALIGN_LEFT = "left"
+TABLE_ALIGNS = (ALIGN_LEFT, "center", "right")
 
 # --- Events, signals, storage ---------------------------------------------
 EVENT_MESSAGE = f"{DOMAIN}_message"

@@ -995,6 +995,40 @@ export class LogNotifierCard extends LitElement {
     .body .field-value .plain {
       white-space: pre-wrap;
     }
+    /* Tables span the message column like a grid does; a wider one scrolls
+       sideways instead of stretching the column — width is only a minimum. */
+    .body .table-wrap {
+      overflow-x: auto;
+      margin: 6px 0 2px;
+    }
+    .body table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .body th,
+    .body td {
+      padding: 3px 12px 3px 0;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--divider-color);
+    }
+    .body th:last-child,
+    .body td:last-child {
+      padding-right: 0;
+    }
+    .body th {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--secondary-text-color);
+      white-space: nowrap;
+    }
+    .body tbody tr:last-child td {
+      border-bottom: none;
+    }
+    .body td.plain {
+      white-space: pre-wrap;
+    }
     .body .underline {
       text-decoration: underline;
     }
@@ -1021,6 +1055,10 @@ function previewText(message: LogMessage): string {
   for (const block of message.blocks ?? []) {
     const first = block.type === "fields" ? block.rows[0]?.[0] : undefined;
     if (first) return [first.label, first.value].filter(Boolean).join(": ");
+  }
+  for (const block of message.blocks ?? []) {
+    if (block.type !== "table" || !block.rows.length) continue;
+    return [block.columns[0]?.label, block.rows[0][0]].filter(Boolean).join(": ");
   }
   return "";
 }

@@ -9,7 +9,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .const import (
+    ALIGN_LEFT,
     BLOCK_FIELDS,
+    BLOCK_TABLE,
     BLOCK_TEXT,
     CONF_BADGE_LEVELS,
     CONF_ENABLED,
@@ -36,13 +38,23 @@ from .const import (
     MAX_FIELD_VALUE_CHARS,
     MAX_FIELDS,
     MAX_FIELDS_PER_ROW,
+    MAX_GRID_COLUMNS,
     MAX_MESSAGES_LIMIT,
+    MAX_TABLE_CELL_CHARS,
+    MAX_TABLE_CELLS,
+    MAX_TABLE_COLUMNS,
+    MAX_TABLE_ROWS,
+    TABLE_ALIGNS,
 )
 
-#: Label/value grid: a list of rows, each a list of ``{"label", "value"}``.
-Rows = list[list[dict[str, str]]]
-#: One block below the content: ``{"type": "text", "text": …}`` or
-#: ``{"type": "fields", "rows": …}``.
+#: Label/value grid: a list of rows, each a list of ``{"label", "value"}``,
+#: plus ``"span"`` for a field wider than one column.
+Rows = list[list[dict[str, Any]]]
+#: Table head: one ``{"label": …}`` per column, plus ``"align"`` unless left.
+Columns = list[dict[str, str]]
+#: One block below the content: ``{"type": "text", "text": …}``,
+#: ``{"type": "fields", "rows": …}`` or
+#: ``{"type": "table", "columns": …, "rows": [[cell, …], …]}``.
 Block = dict[str, Any]
 
 TOKEN_BYTES = 24
@@ -201,6 +213,7 @@ def clamp_blocks(blocks: Any, text_budget: int = MAX_CONTENT_CHARS) -> list[Bloc
         return result
     budget = max(0, text_budget)
     remaining_fields = MAX_FIELDS
+    remaining_cells = MAX_TABLE_CELLS
     for block in blocks:
         if len(result) >= MAX_BLOCKS:
             break
@@ -217,6 +230,13 @@ def clamp_blocks(blocks: Any, text_budget: int = MAX_CONTENT_CHARS) -> list[Bloc
             if rows:
                 result.append({"type": BLOCK_FIELDS, "rows": rows})
                 remaining_fields -= sum(len(row) for row in rows)
+        elif kind == BLOCK_TABLE:
+            columns, table_rows = _clamp_table(block, remaining_cells)
+            if table_rows:
+                result.append(
+                    {"type": BLOCK_TABLE, "columns": columns, "rows": table_rows}
+                )
+                remaining_cells -= sum(len(row) for row in table_rows)
     return result
 
 
@@ -230,18 +250,89 @@ def _clamp_rows(rows: Any, remaining: int) -> Rows:
             break
         if not isinstance(row, list):
             continue
-        kept = [
-            {
-                "label": str(item.get("label") or "")[:MAX_FIELD_LABEL_CHARS],
-                "value": str(item.get("value") or "")[:MAX_FIELD_VALUE_CHARS],
-            }
+        items = [
+            item
             for item in row
             if isinstance(item, dict) and (item.get("label") or item.get("value"))
         ][: min(MAX_FIELDS_PER_ROW, remaining)]
+        kept = []
+        for item, span in zip(items, _fit_spans(items), strict=True):
+            entry: dict[str, Any] = {
+                "label": str(item.get("label") or "")[:MAX_FIELD_LABEL_CHARS],
+                "value": str(item.get("value") or "")[:MAX_FIELD_VALUE_CHARS],
+            }
+            if span > 1:
+                entry["span"] = span
+            kept.append(entry)
         if kept:
             result.append(kept)
             remaining -= len(kept)
     return result
+
+
+def _fit_spans(items: list[dict[str, Any]]) -> list[int]:
+    """The column span of each field, so that a row adds up to at most
+    ``MAX_GRID_COLUMNS``.
+
+    Anything but a whole number above 1 counts as 1. A span that does not fit
+    is shortened, leaving one column for every field after it — the row keeps
+    all its fields and only loses width, like any other surplus.
+    """
+    spans = []
+    used = 0
+    for index, item in enumerate(items):
+        span = item.get("span")
+        if not isinstance(span, int) or isinstance(span, bool) or span < 1:
+            span = 1
+        after = len(items) - index - 1
+        span = max(1, min(span, MAX_GRID_COLUMNS - used - after))
+        spans.append(span)
+        used += span
+    return spans
+
+
+def _clamp_table(block: Block, remaining: int) -> tuple[Columns, list[list[str]]]:
+    """Head and rows of one table, with at most ``remaining`` cells left in total.
+
+    Every row gets exactly as many cells as the table has columns — padded or
+    cut. Without a head the widest row sets the width. A row that no longer
+    fits into ``remaining`` ends the table.
+    """
+    columns: Columns = []
+    raw_columns = block.get("columns")
+    for raw in raw_columns if isinstance(raw_columns, list) else []:
+        if len(columns) >= MAX_TABLE_COLUMNS:
+            break
+        if not isinstance(raw, dict):
+            continue
+        column = {"label": str(raw.get("label") or "")[:MAX_FIELD_LABEL_CHARS]}
+        align = raw.get("align")
+        if align in TABLE_ALIGNS and align != ALIGN_LEFT:
+            column["align"] = align
+        columns.append(column)
+    raw_rows = block.get("rows")
+    raw_rows = [
+        row
+        for row in (raw_rows if isinstance(raw_rows, list) else [])
+        if isinstance(row, list)
+    ]
+    width = len(columns) or min(
+        MAX_TABLE_COLUMNS, max((len(row) for row in raw_rows), default=0)
+    )
+    rows: list[list[str]] = []
+    for raw_row in raw_rows:
+        if len(rows) >= MAX_TABLE_ROWS or remaining < width:
+            break
+        cells = [
+            "" if cell is None or isinstance(cell, dict | list) else str(cell)
+            for cell in raw_row[:width]
+        ]
+        cells = [cell[:MAX_TABLE_CELL_CHARS] for cell in cells]
+        cells += [""] * (width - len(cells))
+        if any(cells):
+            rows.append(cells)
+            remaining -= width
+    return columns, rows
 
 
 def _clamp(value: Any, default: int, minimum: int, maximum: int) -> int:
@@ -265,7 +356,7 @@ class Message:
     source: str | None = None
     tags: list[str] = field(default_factory=list)
     format: str = FORMAT_MARKDOWN
-    #: Text and field grids shown below ``content``, in this order.
+    #: Text, field grids and tables shown below ``content``, in this order.
     blocks: list[Block] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:

@@ -10,6 +10,27 @@ instructions are appended by the workflow and do not belong in an entry.
 
 ## [Unreleased]
 
+### Added
+
+- **Table blocks** — `{"type": "table", "columns": […], "rows": [[…], …]}`
+  shows rows of equal width under one shared head, next to the existing text
+  blocks and label/value grids. Columns are labels or
+  `{"label", "align"}` objects (`left`, `center`, `right`). Rows are lists of
+  cells or objects keyed by column; `{"table": [{…}, …]}` turns a plain list
+  of objects into a table whose head comes from the keys. Cells take text,
+  numbers, booleans or null and inline markdown; tables span the full width
+  of the card, and wider ones scroll sideways. Limits: 10 columns and 50 rows
+  per table, 250 cells across all tables, 200 characters per cell.
+- **Wider grid fields** — a field with `"span": n` takes `n` columns of its
+  row. A row has as many columns as its spans add up to, so rows with the same
+  sum line up. At most 6 columns per row; a span that does not fit is
+  shortened. Grids without `span` look as before.
+
+### Changed
+
+- The push blueprint falls back to the first table cell, under its column
+  label, when a message has neither title, content, text block nor field.
+
 ## [1.0.7] — 2026-09-29
 
 ### Added

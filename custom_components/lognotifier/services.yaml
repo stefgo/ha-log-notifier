@@ -39,7 +39,7 @@ send:
             - markdown
             - plain
     blocks:
-      example: '[{"rows": [[{"label": "Job", "value": "vm-101"}, {"label": "Exit", "value": "2"}]]}, "Datastore full"]'
+      example: '[{"rows": [[{"label": "Job", "value": "vm-101"}, {"label": "Exit", "value": "2"}]]}, "Datastore full", {"table": [{"host": "nas", "status": "ok"}]}]'
       selector:
         object:
 

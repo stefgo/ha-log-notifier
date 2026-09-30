@@ -109,6 +109,41 @@ async def test_send_with_malformed_blocks_is_a_validation_error(
         await _send(hass, **{ATTR_BLOCKS: [{"type": "divider"}]})
 
 
+async def test_send_stores_a_table(hass: HomeAssistant, runtime) -> None:
+    """Tables pass the service like the other blocks, alignment included."""
+    await _send(
+        hass,
+        **{
+            ATTR_BLOCKS: [
+                {
+                    "columns": ["Host", {"label": "Duration", "align": "right"}],
+                    "rows": [["nas", 12], ["pi", None]],
+                }
+            ],
+        },
+    )
+
+    message = runtime.store.messages("backups")[0]
+    assert message.blocks == [
+        {
+            "type": "table",
+            "columns": [{"label": "Host"}, {"label": "Duration", "align": "right"}],
+            "rows": [["nas", "12"], ["pi", ""]],
+        }
+    ]
+
+
+async def test_send_with_a_bad_table_alignment_is_a_validation_error(
+    hass: HomeAssistant, runtime
+) -> None:
+    """An alignment outside the allow-list is the caller's mistake."""
+    with pytest.raises(ServiceValidationError, match="align"):
+        await _send(
+            hass,
+            **{ATTR_BLOCKS: [{"columns": [{"label": "a", "align": "up"}], "rows": []}]},
+        )
+
+
 async def test_send_to_an_unknown_channel_is_a_validation_error(
     hass: HomeAssistant, runtime
 ) -> None:
