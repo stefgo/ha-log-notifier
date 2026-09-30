@@ -2,8 +2,12 @@
 
 import { html, TemplateResult, nothing } from "lit";
 
-import { Block, Inline, parseMarkdown } from "./markdown";
-import type { MessageBlock, MessageField } from "./types";
+import { fieldSpans } from "./grid";
+import { Block, Inline, parseInline, parseMarkdown } from "./markdown";
+import type { MessageBlock, MessageField, TableColumn } from "./types";
+
+/** The only values that reach a cell's `text-align` — never foreign CSS. */
+const ALIGNS = new Set(["left", "center", "right"]);
 
 export function renderMarkdown(text: string): TemplateResult {
   return html`${parseMarkdown(text).map(renderBlock)}`;
@@ -26,6 +30,8 @@ export function renderBlocks(blocks: MessageBlock[], plain: boolean): TemplateRe
         return plain ? renderPlain(block.text) : renderMarkdown(block.text);
       case "fields":
         return renderFields(block.rows, plain);
+      case "table":
+        return renderTable(block.columns, block.rows, plain);
       default:
         return nothing;
     }
@@ -34,31 +40,81 @@ export function renderBlocks(blocks: MessageBlock[], plain: boolean): TemplateRe
 
 /**
  * The label/value grid: one block, every row spanning its full width, the
- * columns of a row sharing it evenly. Values follow the message's format,
- * labels are always plain text.
+ * columns of a row sharing it evenly. A row has as many columns as the spans
+ * of its fields add up to, so rows with the same sum line up. Values follow
+ * the message's format, labels are always plain text.
  */
 function renderFields(rows: MessageField[][], plain: boolean): TemplateResult {
   return html`<div class="fields">
-    ${rows.map(
-      (row) =>
-        html`<div class="field-row" style=${`--ln-columns:${row.length}`}>
-          ${row.map(
-            (field) =>
-              html`<div class="field">
-                ${field.label
-                  ? html`<div class="field-label">${field.label}</div>`
-                  : nothing}
-                ${field.value
-                  ? html`<div class="field-value">
-                      ${plain
-                        ? html`<span class="plain">${field.value}</span>`
-                        : renderMarkdown(field.value)}
-                    </div>`
-                  : nothing}
-              </div>`,
-          )}
-        </div>`,
-    )}
+    ${rows.map((row) => {
+      const spans = fieldSpans(row);
+      const columns = spans.reduce((sum, span) => sum + span, 0);
+      return html`<div class="field-row" style=${`--ln-columns:${columns}`}>
+        ${row.map(
+          (field, index) =>
+            html`<div
+              class="field"
+              style=${spans[index] > 1 ? `grid-column:span ${spans[index]}` : nothing}
+            >
+              ${field.label
+                ? html`<div class="field-label">${field.label}</div>`
+                : nothing}
+              ${field.value
+                ? html`<div class="field-value">
+                    ${plain
+                      ? html`<span class="plain">${field.value}</span>`
+                      : renderMarkdown(field.value)}
+                  </div>`
+                : nothing}
+            </div>`,
+        )}
+      </div>`;
+    })}
+  </div>`;
+}
+
+/**
+ * A table with a shared head. Cells follow the message's format, but only as
+ * inline markdown — a list or code block has no place in a cell. The head is
+ * always plain text and left out when no column has a label. The table spans
+ * the full width; the wrapper scrolls sideways so a wide one does not stretch
+ * the card.
+ */
+function renderTable(
+  columns: TableColumn[],
+  rows: string[][],
+  plain: boolean,
+): TemplateResult {
+  const align = (index: number): string | typeof nothing => {
+    const value = columns[index]?.align;
+    return value && ALIGNS.has(value) ? `text-align:${value}` : nothing;
+  };
+  return html`<div class="table-wrap">
+    <table>
+      ${columns.some((column) => column.label)
+        ? html`<thead>
+            <tr>
+              ${columns.map(
+                (column, index) => html`<th style=${align(index)}>${column.label}</th>`,
+              )}
+            </tr>
+          </thead>`
+        : nothing}
+      <tbody>
+        ${rows.map(
+          (row) =>
+            html`<tr>
+              ${row.map(
+                (cell, index) =>
+                  // No whitespace around the cell: plain cells keep theirs.
+                  html`<td class=${plain ? "plain" : nothing} style=${align(index)}
+                    >${plain ? cell : parseInline(cell).map(renderInline)}</td
+                  >`,
+              )}
+            </tr>`,
+        )}
+      </tbody>
+    </table>
   </div>`;
 }
 

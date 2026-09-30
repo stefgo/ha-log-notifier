@@ -192,6 +192,51 @@ def test_malformed_blocks_are_rejected():
             ingest.parse_payload({"content": "a", "blocks": blocks})
 
 
+def test_field_span_widens_a_field():
+    parsed = ingest.parse_payload(
+        {"blocks": [{"rows": [[JOB, {"label": "Host", "value": "pve1", "span": 2}]]}]}
+    )
+    assert parsed.blocks == [
+        {
+            "type": "fields",
+            "rows": [[JOB, {"label": "Host", "value": "pve1", "span": 2}]],
+        }
+    ]
+
+
+def test_field_span_of_one_is_not_stored():
+    parsed = ingest.parse_payload({"blocks": [{"rows": [[{**JOB, "span": 1}]]}]})
+    assert parsed.blocks == [{"type": "fields", "rows": [[JOB]]}]
+
+
+def test_field_spans_are_fitted_into_the_column_cap():
+    parsed = ingest.parse_payload(
+        {
+            "blocks": [
+                {
+                    "rows": [
+                        [{**JOB, "span": 50}, JOB, JOB],
+                        [{**JOB, "span": 4}, {**JOB, "span": 4}],
+                    ]
+                }
+            ]
+        }
+    )
+    assert parsed.blocks is not None
+    rows = parsed.blocks[0]["rows"]
+    # Every field survives; the wide ones give up columns, the later first.
+    assert [[f.get("span", 1) for f in row] for row in rows] == [
+        [const.MAX_GRID_COLUMNS - 2, 1, 1],
+        [4, 2],
+    ]
+
+
+def test_malformed_field_span_is_rejected():
+    for span in (0, -1, 1.5, "2", True, [2]):
+        with pytest.raises(ingest.PayloadError):
+            ingest.parse_payload({"blocks": [{"rows": [[{**JOB, "span": span}]]}]})
+
+
 def test_text_blocks_share_the_content_budget():
     content = "c" * (const.MAX_CONTENT_CHARS - 10)
     parsed = ingest.parse_payload(
@@ -227,3 +272,136 @@ def test_block_count_is_limited():
 
 def test_without_blocks_nothing_changes():
     assert ingest.parse_payload({"content": "a"}).blocks is None
+
+
+def test_table_normal_form():
+    parsed = ingest.parse_payload(
+        {
+            "content": "Backups",
+            "blocks": [
+                {
+                    "type": "table",
+                    "columns": ["Host", {"label": "Duration", "align": "RIGHT"}],
+                    "rows": [[" nas ", "12 s"], ["pi", None]],
+                }
+            ],
+        }
+    )
+    assert parsed.blocks == [
+        {
+            "type": "table",
+            "columns": [{"label": "Host"}, {"label": "Duration", "align": "right"}],
+            "rows": [["nas", "12 s"], ["pi", ""]],
+        }
+    ]
+
+
+def test_table_left_alignment_is_not_stored():
+    parsed = ingest.parse_payload(
+        {"blocks": [{"columns": [{"label": "A", "align": "left"}], "rows": [["x"]]}]}
+    )
+    assert parsed.blocks == [
+        {"type": "table", "columns": [{"label": "A"}], "rows": [["x"]]}
+    ]
+
+
+def test_table_rows_as_objects_derive_the_head():
+    parsed = ingest.parse_payload(
+        {
+            "blocks": [
+                {"table": [{"host": "nas", "ok": True}, {"ms": 3.5, "host": "pi"}]}
+            ]
+        }
+    )
+    # Every key in the order it first appears; missing cells stay empty.
+    assert parsed.blocks == [
+        {
+            "type": "table",
+            "columns": [{"label": "host"}, {"label": "ok"}, {"label": "ms"}],
+            "rows": [["nas", "true", ""], ["pi", "", "3.5"]],
+        }
+    ]
+
+
+def test_table_rows_as_objects_follow_given_columns():
+    parsed = ingest.parse_payload(
+        {
+            "blocks": [
+                {
+                    "columns": ["b", "a"],
+                    "rows": [{"a": 1, "b": 2, "c": 3}, ["x", "y"]],
+                }
+            ]
+        }
+    )
+    assert parsed.blocks is not None
+    assert parsed.blocks[0]["rows"] == [["2", "1"], ["x", "y"]]
+
+
+def test_table_without_head_is_padded_to_the_widest_row():
+    parsed = ingest.parse_payload(
+        {"blocks": [{"type": "table", "rows": [[1, 2, 3], [4], [None, "", None]]}]}
+    )
+    # The empty row is dropped, the short one padded.
+    assert parsed.blocks == [
+        {"type": "table", "columns": [], "rows": [["1", "2", "3"], ["4", "", ""]]}
+    ]
+
+
+def test_table_rows_are_cut_to_the_head():
+    parsed = ingest.parse_payload(
+        {"blocks": [{"columns": ["a"], "rows": [["x", "surplus"]]}]}
+    )
+    assert parsed.blocks is not None
+    assert parsed.blocks[0]["rows"] == [["x"]]
+
+
+def test_empty_table_does_not_replace_content():
+    with pytest.raises(ingest.PayloadError):
+        ingest.parse_payload({"blocks": [{"columns": ["a"], "rows": [[None]]}]})
+
+
+@pytest.mark.parametrize(
+    "block",
+    [
+        {"type": "table"},
+        {"type": "table", "rows": "a|b"},
+        {"type": "table", "rows": ["a"]},
+        {"type": "table", "rows": [[{"nested": 1}]]},
+        {"type": "table", "rows": [[["nested"]]]},
+        {"type": "table", "columns": "a", "rows": [["x"]]},
+        {"type": "table", "columns": [{"label": "a", "align": "justify"}], "rows": []},
+        {"table": [{"a": [1]}]},
+    ],
+)
+def test_malformed_tables_are_rejected(block):
+    with pytest.raises(ingest.PayloadError):
+        ingest.parse_payload({"content": "a", "blocks": [block]})
+
+
+def test_table_limits_per_table():
+    parsed = ingest.parse_payload(
+        {
+            "content": "a",
+            "blocks": [
+                {"columns": [f"c{i}" for i in range(15)], "rows": [["x" * 500] * 15]},
+                {"columns": ["a"], "rows": [["x"]] * 80},
+            ],
+        }
+    )
+    assert parsed.blocks is not None
+    wide, long = parsed.blocks
+    assert len(wide["columns"]) == const.MAX_TABLE_COLUMNS
+    assert wide["rows"] == [
+        ["x" * const.MAX_TABLE_CELL_CHARS] * const.MAX_TABLE_COLUMNS
+    ]
+    assert len(long["rows"]) == const.MAX_TABLE_ROWS
+
+
+def test_table_cells_count_across_tables():
+    table = {"columns": ["a", "b", "c", "d", "e"], "rows": [list("abcde")] * 30}
+    parsed = ingest.parse_payload({"content": "a", "blocks": [table] * 3})
+    assert parsed.blocks is not None
+    # 150 cells for the first, the remaining 100 for the second, none left.
+    assert [len(block["rows"]) for block in parsed.blocks] == [30, 20]
+    assert const.MAX_TABLE_CELLS == 250

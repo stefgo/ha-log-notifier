@@ -111,16 +111,21 @@ actions:
               {{ trigger.event.data.channel_name }} · {{ level }}
             message: >
               {#- A message may consist of blocks alone; the first text block,
-                  else the first field, then stands in for the content. -#}
+                  else the first field, else the first table cell under its
+                  column label, then stands in for the content. -#}
               {%- set blocks = trigger.event.data.blocks | default([]) -%}
               {%- set texts = blocks | selectattr('type', 'eq', 'text')
                   | map(attribute='text') | list -%}
               {%- set grids = blocks | selectattr('type', 'eq', 'fields')
                   | map(attribute='rows') | list -%}
+              {%- set tables = blocks | selectattr('type', 'eq', 'table')
+                  | list -%}
               {%- set body = trigger.event.data.title if trigger.event.data.title
                   else trigger.event.data.content if trigger.event.data.content
                   else texts[0] if texts
                   else [grids[0][0][0].label, grids[0][0][0].value] | select | join(': ') if grids
+                  else [(tables[0].columns[0].label if tables[0].columns else ''),
+                        tables[0].rows[0][0]] | select | join(': ') if tables
                   else '' -%}
               {#- Strip code blocks and formatting; inside the block scalar
                   backslashes stay literal, hence a pattern without them. -#}

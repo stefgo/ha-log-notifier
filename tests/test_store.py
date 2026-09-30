@@ -308,8 +308,21 @@ def test_totals_provide_the_entity_fields():
 
 
 BLOCKS = [
-    {"type": "fields", "rows": [[{"label": "Job", "value": "vm-101"}]]},
+    {
+        "type": "fields",
+        "rows": [
+            [
+                {"label": "Job", "value": "vm-101", "span": 2},
+                {"label": "Exit", "value": "2"},
+            ]
+        ],
+    },
     {"type": "text", "text": "Datastore full"},
+    {
+        "type": "table",
+        "columns": [{"label": "Host"}, {"label": "Duration", "align": "right"}],
+        "rows": [["nas", "12 s"]],
+    },
 ]
 
 
@@ -364,3 +377,56 @@ def test_store_enforces_the_block_limits():
     )
     assert [block["type"] for block in message.blocks] == ["fields"]
     assert [len(r) for r in message.blocks[0]["rows"]] == [const.MAX_FIELDS_PER_ROW] * 3
+
+
+def test_stored_tables_are_repaired_leniently():
+    data = {
+        "id": 1,
+        "ts": 0,
+        "content": "x",
+        "blocks": [
+            {
+                "type": "table",
+                "columns": [{"label": "a", "align": "justify"}, "junk", {"label": "b"}],
+                "rows": [["1", {"x": 1}, "surplus"], "junk", [None], ["2"]],
+            },
+            {"type": "table", "columns": [{"label": "empty"}], "rows": []},
+        ],
+    }
+    # A broken align and non-dict columns are dropped, rows fitted to the
+    # head, nested cells blanked; a table without rows disappears.
+    assert models.Message.from_dict(data).blocks == [
+        {
+            "type": "table",
+            "columns": [{"label": "a"}, {"label": "b"}],
+            "rows": [["1", ""], ["2", ""]],
+        }
+    ]
+
+
+def test_stored_field_spans_are_repaired_leniently():
+    field = {"label": "a", "value": "b"}
+    data = {
+        "id": 1,
+        "ts": 0,
+        "content": "x",
+        "blocks": [
+            {
+                "type": "fields",
+                "rows": [
+                    [
+                        {**field, "span": "3"},
+                        {**field, "span": True},
+                        {**field, "span": 9},
+                    ]
+                ],
+            }
+        ],
+    }
+    # Storage is never refused: a broken span counts as one, a wide one is fitted.
+    assert models.Message.from_dict(data).blocks == [
+        {
+            "type": "fields",
+            "rows": [[field, field, {**field, "span": const.MAX_GRID_COLUMNS - 2}]],
+        }
+    ]

@@ -88,7 +88,7 @@
         "source": { "name": "Quelle", "description": "Absendender Dienst." },
         "tags": { "name": "Tags", "description": "Optionale Liste von Schlagwörtern." },
         "format": { "name": "Format", "description": "markdown oder plain." },
-        "blocks": { "name": "Blöcke", "description": "Text und Raster aus Beschriftung und Wert unter dem Inhalt, in beliebiger Reihenfolge: ein Textblock ist ein String, ein Raster ein Objekt mit rows." }
+        "blocks": { "name": "Blöcke", "description": "Text, Raster aus Beschriftung und Wert sowie Tabellen unter dem Inhalt, in beliebiger Reihenfolge: ein Textblock ist ein String, ein Raster ein Objekt mit rows, eine Tabelle ein Objekt mit columns und rows oder mit table als Liste von Objekten." }
       }
     },
     "mark_read": {
