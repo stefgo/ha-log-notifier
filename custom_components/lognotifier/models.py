@@ -45,12 +45,15 @@ from .const import (
     MAX_TABLE_COLUMNS,
     MAX_TABLE_ROWS,
     TABLE_ALIGNS,
+    VALUE_FORMATS,
 )
 
 #: Label/value grid: a list of rows, each a list of ``{"label", "value"}``,
-#: plus ``"span"`` for a field wider than one column.
+#: plus ``"span"`` for a field wider than one column and ``"format"`` for a
+#: value the card formats.
 Rows = list[list[dict[str, Any]]]
-#: Table head: one ``{"label": …}`` per column, plus ``"align"`` unless left.
+#: Table head: one ``{"label": …}`` per column, plus ``"align"`` unless left
+#: and ``"format"`` for cells the card formats.
 Columns = list[dict[str, str]]
 #: One block below the content: ``{"type": "text", "text": …}``,
 #: ``{"type": "fields", "rows": …}`` or
@@ -263,6 +266,8 @@ def _clamp_rows(rows: Any, remaining: int) -> Rows:
             }
             if span > 1:
                 entry["span"] = span
+            if item.get("format") in VALUE_FORMATS:
+                entry["format"] = item["format"]
             kept.append(entry)
         if kept:
             result.append(kept)
@@ -309,6 +314,8 @@ def _clamp_table(block: Block, remaining: int) -> tuple[Columns, list[list[str]]
         align = raw.get("align")
         if align in TABLE_ALIGNS and align != ALIGN_LEFT:
             column["align"] = align
+        if raw.get("format") in VALUE_FORMATS:
+            column["format"] = raw["format"]
         columns.append(column)
     raw_rows = block.get("rows")
     raw_rows = [

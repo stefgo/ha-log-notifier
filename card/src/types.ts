@@ -2,18 +2,24 @@
 
 export type Level = "ERROR" | "WARNING" | "INFO" | "TRACE";
 
+/** How the card shows a value the sender sent as a plain number or date. */
+export type ValueFormat = "bytes" | "bytes_si" | "duration" | "datetime" | "number";
+
 /** One cell of a message's label/value grid. */
 export interface MessageField {
   label: string;
   value: string;
   /** Columns the field takes; left out for one. */
   span?: number;
+  format?: ValueFormat;
 }
 
 /** One column of a table head; without `align` the column is left-aligned. */
 export interface TableColumn {
   label: string;
   align?: "left" | "center" | "right";
+  /** Applies to every cell of the column. */
+  format?: ValueFormat;
 }
 
 /** A block below the content; the list keeps the sender's order. */

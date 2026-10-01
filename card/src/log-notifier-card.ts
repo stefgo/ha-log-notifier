@@ -423,9 +423,14 @@ export class LogNotifierCard extends LitElement {
     return this._channels.find((channel) => channel.id === id);
   }
 
+  /** The viewer's language, for timestamps and formatted values. */
+  private get _locale(): string {
+    return this.hass?.locale?.language ?? this.hass?.language ?? "en";
+  }
+
   private _formatTime(ts: number): string {
     const date = new Date(ts * 1000);
-    const locale = this.hass?.locale?.language ?? this.hass?.language ?? "en";
+    const locale = this._locale;
     const diff = (Date.now() - date.getTime()) / 1000;
     // Recent messages relative ("5 min ago"), older ones with a date.
     if (diff < 60) return "just now";
@@ -636,7 +641,7 @@ export class LogNotifierCard extends LitElement {
               ? renderPlain(message.content)
               : renderMarkdown(message.content)}
           ${message.blocks?.length
-            ? renderBlocks(message.blocks, message.format === "plain")
+            ? renderBlocks(message.blocks, message.format === "plain", this._locale)
             : nothing}
         </div>
         ${message.tags?.length
@@ -994,6 +999,10 @@ export class LogNotifierCard extends LitElement {
     }
     .body .field-value .plain {
       white-space: pre-wrap;
+    }
+    /* Sizes, durations and numbers line up digit by digit in a column. */
+    .body .formatted {
+      font-variant-numeric: tabular-nums;
     }
     /* Tables span the message column like a grid does; a wider one scrolls
        sideways instead of stretching the column — width is only a minimum. */

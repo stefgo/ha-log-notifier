@@ -131,6 +131,11 @@ BLOCK_TABLE = "table"
 ALIGN_LEFT = "left"
 TABLE_ALIGNS = (ALIGN_LEFT, "center", "right")
 
+# How the card shows a field value or a column's cells. The value stays the
+# sender's text; the card formats it in the viewer's language and falls back to
+# the text itself when it does not fit the format.
+VALUE_FORMATS = ("bytes", "bytes_si", "duration", "datetime", "number")
+
 # --- Events, signals, storage ---------------------------------------------
 EVENT_MESSAGE = f"{DOMAIN}_message"
 SIGNAL_CHANNEL_UPDATED = f"{DOMAIN}_channel_updated"

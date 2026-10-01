@@ -237,6 +237,39 @@ def test_malformed_field_span_is_rejected():
             ingest.parse_payload({"blocks": [{"rows": [[{**JOB, "span": span}]]}]})
 
 
+def test_field_format_is_kept_for_the_card():
+    size = {"label": "Size", "value": 1321205760, "format": "BYTES"}
+    parsed = ingest.parse_payload({"blocks": [{"rows": [[JOB, size]]}]})
+    # The value stays the sender's text; only the format is normalized.
+    assert parsed.blocks == [
+        {
+            "type": "fields",
+            "rows": [
+                [JOB, {"label": "Size", "value": "1321205760", "format": "bytes"}]
+            ],
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    "value_format", ["bytes", "bytes_si", "duration", "datetime", "number"]
+)
+def test_every_value_format_is_accepted(value_format):
+    parsed = ingest.parse_payload(
+        {"blocks": [{"rows": [[{**JOB, "format": value_format}]]}]}
+    )
+    assert parsed.blocks is not None
+    assert parsed.blocks[0]["rows"][0][0]["format"] == value_format
+
+
+@pytest.mark.parametrize("value_format", ["size", "", 1, True, ["bytes"]])
+def test_unknown_value_format_is_rejected(value_format):
+    with pytest.raises(ingest.PayloadError):
+        ingest.parse_payload(
+            {"blocks": [{"rows": [[{**JOB, "format": value_format}]]}]}
+        )
+
+
 def test_text_blocks_share_the_content_budget():
     content = "c" * (const.MAX_CONTENT_CHARS - 10)
     parsed = ingest.parse_payload(
@@ -361,6 +394,32 @@ def test_empty_table_does_not_replace_content():
         ingest.parse_payload({"blocks": [{"columns": ["a"], "rows": [[None]]}]})
 
 
+def test_table_column_format_applies_to_its_cells():
+    parsed = ingest.parse_payload(
+        {
+            "blocks": [
+                {
+                    "columns": [
+                        "Name",
+                        {"label": "Size", "align": "right", "format": "bytes"},
+                    ],
+                    "rows": [["root.pxar", 4096]],
+                }
+            ]
+        }
+    )
+    assert parsed.blocks == [
+        {
+            "type": "table",
+            "columns": [
+                {"label": "Name"},
+                {"label": "Size", "align": "right", "format": "bytes"},
+            ],
+            "rows": [["root.pxar", "4096"]],
+        }
+    ]
+
+
 @pytest.mark.parametrize(
     "block",
     [
@@ -371,6 +430,7 @@ def test_empty_table_does_not_replace_content():
         {"type": "table", "rows": [[["nested"]]]},
         {"type": "table", "columns": "a", "rows": [["x"]]},
         {"type": "table", "columns": [{"label": "a", "align": "justify"}], "rows": []},
+        {"type": "table", "columns": [{"label": "a", "format": "size"}], "rows": []},
         {"table": [{"a": [1]}]},
     ],
 )

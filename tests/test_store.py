@@ -404,6 +404,51 @@ def test_stored_tables_are_repaired_leniently():
     ]
 
 
+def test_stored_value_formats_are_repaired_leniently():
+    data = {
+        "id": 1,
+        "ts": 0,
+        "content": "x",
+        "blocks": [
+            {
+                "type": "fields",
+                "rows": [
+                    [
+                        {"label": "a", "value": "1", "format": "bytes"},
+                        {"label": "b", "value": "2", "format": "from-the-future"},
+                    ]
+                ],
+            },
+            {
+                "type": "table",
+                "columns": [
+                    {"label": "c", "format": "duration"},
+                    {"label": "d", "format": 3},
+                ],
+                "rows": [["1", "2"]],
+            },
+        ],
+    }
+    # A format this version does not know is dropped, not refused: the value
+    # is still shown, just unformatted.
+    assert models.Message.from_dict(data).blocks == [
+        {
+            "type": "fields",
+            "rows": [
+                [
+                    {"label": "a", "value": "1", "format": "bytes"},
+                    {"label": "b", "value": "2"},
+                ]
+            ],
+        },
+        {
+            "type": "table",
+            "columns": [{"label": "c", "format": "duration"}, {"label": "d"}],
+            "rows": [["1", "2"]],
+        },
+    ]
+
+
 def test_stored_field_spans_are_repaired_leniently():
     field = {"label": "a", "value": "b"}
     data = {

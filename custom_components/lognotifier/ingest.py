@@ -19,6 +19,7 @@ from .const import (
     RATE_LIMIT_BURST,
     RATE_LIMIT_PER_MINUTE,
     TABLE_ALIGNS,
+    VALUE_FORMATS,
 )
 from .models import Block, Columns, Rows, clamp_blocks, normalize_level
 
@@ -124,8 +125,9 @@ def parse_blocks(value: Any, *, text_budget: int = MAX_CONTENT_CHARS) -> list[Bl
     of rows, each a list of ``{"label", "value"}`` objects — the row decides
     how many fields sit side by side, and a bare object in place of a row
     counts as a row with one field. A field's optional ``span`` makes it
-    several columns wide; a row has as many columns as its spans add up to.
-    See ``_parse_table`` for tables.
+    several columns wide; a row has as many columns as its spans add up to,
+    and its optional ``format`` tells the card how to show the value (see
+    ``VALUE_FORMATS``). See ``_parse_table`` for tables.
 
     Wrong types are refused; empty blocks, rows and fields are dropped, and
     whatever exceeds the limits is cut off, like surplus ``tags``. Text blocks
@@ -188,6 +190,9 @@ def _parse_rows(value: Any) -> Rows:
             span = item.get("span")
             if span is not None:
                 parsed["span"] = _parse_span(span)
+            value_format = item.get("format")
+            if value_format is not None:
+                parsed["format"] = _parse_format(value_format)
             parsed_row.append(parsed)
         rows.append(parsed_row)
     return rows
@@ -204,8 +209,9 @@ def _parse_span(value: Any) -> int:
 def _parse_table(item: dict[str, Any]) -> Block:
     """One table block: a shared head over rows of cells.
 
-    ``columns`` is optional; each column is a label or ``{"label", "align"}``
-    with ``align`` one of ``left``, ``center``, ``right``. A row is a list of
+    ``columns`` is optional; each column is a label or ``{"label", "align",
+    "format"}`` with ``align`` one of ``left``, ``center``, ``right`` and
+    ``format`` one of ``VALUE_FORMATS``, applied to every cell of the column. A row is a list of
     cells, or an object whose keys name the columns — without ``columns`` the
     head is then derived from all keys in the order they first appear. Rows
     of lists and no ``columns`` give a table without a head. Cells are text,
@@ -240,7 +246,7 @@ def _parse_table(item: dict[str, Any]) -> Block:
 
 
 def _parse_column(value: Any) -> dict[str, str]:
-    """One column of a table head: a bare label or ``{"label", "align"}``."""
+    """One column of a table head: a bare label or ``{"label", "align", "format"}``."""
     if not isinstance(value, dict):
         return {"label": _block_text(value)}
     column = {"label": _block_text(value.get("label"))}
@@ -251,7 +257,17 @@ def _parse_column(value: Any) -> dict[str, str]:
                 f"Column 'align' must be one of {', '.join(TABLE_ALIGNS)}"
             )
         column["align"] = align.lower()
+    value_format = value.get("format")
+    if value_format is not None:
+        column["format"] = _parse_format(value_format)
     return column
+
+
+def _parse_format(value: Any) -> str:
+    """How the card shows a value: one of ``VALUE_FORMATS``."""
+    if not isinstance(value, str) or value.lower() not in VALUE_FORMATS:
+        raise PayloadError(f"'format' must be one of {', '.join(VALUE_FORMATS)}")
+    return value.lower()
 
 
 def _cell_text(value: Any) -> str:

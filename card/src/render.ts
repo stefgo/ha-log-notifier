@@ -2,6 +2,7 @@
 
 import { html, TemplateResult, nothing } from "lit";
 
+import { formatValue } from "./format";
 import { fieldSpans } from "./grid";
 import { Block, Inline, parseInline, parseMarkdown } from "./markdown";
 import type { MessageBlock, MessageField, TableColumn } from "./types";
@@ -21,17 +22,22 @@ export function renderPlain(text: string): TemplateResult {
 /**
  * The blocks below the content, in the sender's order. Text follows the
  * message's format like the content does; a block type this card does not know
- * (sent by a newer integration) is skipped.
+ * (sent by a newer integration) is skipped. `locale` is the viewer's language,
+ * for values with a format.
  */
-export function renderBlocks(blocks: MessageBlock[], plain: boolean): TemplateResult {
+export function renderBlocks(
+  blocks: MessageBlock[],
+  plain: boolean,
+  locale: string,
+): TemplateResult {
   return html`${blocks.map((block) => {
     switch (block.type) {
       case "text":
         return plain ? renderPlain(block.text) : renderMarkdown(block.text);
       case "fields":
-        return renderFields(block.rows, plain);
+        return renderFields(block.rows, plain, locale);
       case "table":
-        return renderTable(block.columns, block.rows, plain);
+        return renderTable(block.columns, block.rows, plain, locale);
       default:
         return nothing;
     }
@@ -42,32 +48,41 @@ export function renderBlocks(blocks: MessageBlock[], plain: boolean): TemplateRe
  * The label/value grid: one block, every row spanning its full width, the
  * columns of a row sharing it evenly. A row has as many columns as the spans
  * of its fields add up to, so rows with the same sum line up. Values follow
- * the message's format, labels are always plain text.
+ * the message's format, labels are always plain text; a value with a format of
+ * its own is plain text too, once it could be formatted.
  */
-function renderFields(rows: MessageField[][], plain: boolean): TemplateResult {
+function renderFields(
+  rows: MessageField[][],
+  plain: boolean,
+  locale: string,
+): TemplateResult {
   return html`<div class="fields">
     ${rows.map((row) => {
       const spans = fieldSpans(row);
       const columns = spans.reduce((sum, span) => sum + span, 0);
       return html`<div class="field-row" style=${`--ln-columns:${columns}`}>
-        ${row.map(
-          (field, index) =>
-            html`<div
-              class="field"
-              style=${spans[index] > 1 ? `grid-column:span ${spans[index]}` : nothing}
-            >
-              ${field.label
-                ? html`<div class="field-label">${field.label}</div>`
-                : nothing}
-              ${field.value
+        ${row.map((field, index) => {
+          const formatted = field.value
+            ? formatValue(field.value, field.format, locale)
+            : null;
+          return html`<div
+            class="field"
+            style=${spans[index] > 1 ? `grid-column:span ${spans[index]}` : nothing}
+          >
+            ${field.label
+              ? html`<div class="field-label">${field.label}</div>`
+              : nothing}
+            ${formatted !== null
+              ? html`<div class="field-value formatted">${formatted}</div>`
+              : field.value
                 ? html`<div class="field-value">
                     ${plain
                       ? html`<span class="plain">${field.value}</span>`
                       : renderMarkdown(field.value)}
                   </div>`
                 : nothing}
-            </div>`,
-        )}
+          </div>`;
+        })}
       </div>`;
     })}
   </div>`;
@@ -75,7 +90,8 @@ function renderFields(rows: MessageField[][], plain: boolean): TemplateResult {
 
 /**
  * A table with a shared head. Cells follow the message's format, but only as
- * inline markdown — a list or code block has no place in a cell. The head is
+ * inline markdown — a list or code block has no place in a cell; a column's
+ * own format turns a fitting cell into plain text. The head is
  * always plain text and left out when no column has a label. The table spans
  * the full width; the wrapper scrolls sideways so a wide one does not stretch
  * the card.
@@ -84,6 +100,7 @@ function renderTable(
   columns: TableColumn[],
   rows: string[][],
   plain: boolean,
+  locale: string,
 ): TemplateResult {
   const align = (index: number): string | typeof nothing => {
     const value = columns[index]?.align;
@@ -104,13 +121,17 @@ function renderTable(
         ${rows.map(
           (row) =>
             html`<tr>
-              ${row.map(
-                (cell, index) =>
-                  // No whitespace around the cell: plain cells keep theirs.
-                  html`<td class=${plain ? "plain" : nothing} style=${align(index)}
-                    >${plain ? cell : parseInline(cell).map(renderInline)}</td
-                  >`,
-              )}
+              ${row.map((cell, index) => {
+                const formatted = cell
+                  ? formatValue(cell, columns[index]?.format, locale)
+                  : null;
+                // No whitespace around the cell: plain cells keep theirs.
+                return formatted !== null
+                  ? html`<td class="formatted" style=${align(index)}>${formatted}</td>`
+                  : html`<td class=${plain ? "plain" : nothing} style=${align(index)}
+                      >${plain ? cell : parseInline(cell).map(renderInline)}</td
+                    >`;
+              })}
             </tr>`,
         )}
       </tbody>

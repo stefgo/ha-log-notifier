@@ -175,7 +175,7 @@ width, its fields share it evenly.
 | Block | Form | Shorthand |
 | --- | --- | --- |
 | Text | `{"type": "text", "text": "…"}` | a bare string, or an object with `text` and no `type` |
-| Grid | `{"type": "fields", "rows": [[{"label": "…", "value": "…", "span": 1}, …], …]}` | an object with `rows` and no `type`; a bare field object in place of a row is a row of one |
+| Grid | `{"type": "fields", "rows": [[{"label": "…", "value": "…", "span": 1, "format": "…"}, …], …]}` | an object with `rows` and no `type`; a bare field object in place of a row is a row of one |
 | Table | `{"type": "table", "columns": ["…", …], "rows": [["…", …], …]}` | an object with `columns` and no `type`; `{"table": [{…}, …]}` for a list of objects |
 
 `content` stays and is shown first, like an implicit leading text block; with
@@ -227,8 +227,9 @@ field its own label. Use it for many similar items, a grid for a few facts:
 }
 ```
 
-- `columns` is a list of labels or `{"label": "…", "align": "left|center|right"}`
-  objects; any other `align` is refused with `400`.
+- `columns` is a list of labels or `{"label": "…", "align": "left|center|right",
+  "format": "…"}` objects; any other `align` is refused with `400`, `format`
+  see [Value formats](#value-formats).
 - A row is a list of cells, or an object whose keys name the columns. Without
   `columns` the head is taken from the keys, in the order they first appear;
   rows of lists without `columns` give a table without a head.
@@ -238,6 +239,42 @@ field its own label. Use it for many similar items, a grid for a few facts:
   links, spoilers — but no lists or code blocks. The head is plain text.
 - A table spans the full width of the card, like a grid; one wider than the
   card scrolls sideways.
+
+#### Value formats
+
+A sender often has a raw number — bytes, seconds, a timestamp — and no way of
+writing it the way the reader expects. `format` on a field, or on a table
+column for all of its cells, hands that to the card, which writes the value in
+the language Home Assistant is set to:
+
+| `format` | Value | Shown as (English / German) |
+| --- | --- | --- |
+| `bytes` | bytes | `1.23 GiB` / `1,23 GiB` — binary units, like the Proxmox UI |
+| `bytes_si` | bytes | `1.32 GB` / `1,32 GB` — SI units, steps of 1000 |
+| `duration` | seconds | `14m 7s` / `14 Min. 7 Sek.` — the largest unit and the one below it |
+| `datetime` | Unix seconds or ISO 8601 (no offset means UTC) | `10/1/26, 3:00 AM` / `01.10.26, 03:00` — like the card's own timestamps |
+| `number` | a number | `1,321,205,760` / `1.321.205.760` |
+
+```json
+{"type": "fields", "rows": [
+  [{"label": "Size", "value": 1321205760, "format": "bytes"}, {"label": "Duration", "value": 847, "format": "duration"}],
+  [{"label": "Start", "value": "2026-10-01T01:00:00Z", "format": "datetime"}]
+]}
+```
+
+```json
+{"type": "table",
+ "columns": ["Archive", {"label": "Size", "align": "right", "format": "bytes"}],
+ "rows": [["root.pxar", 1320550400], ["catalog.pcat1", 655360]]}
+```
+
+- The value is stored as sent; only the card formats it. The
+  `lognotifier_message` event — and with it the push blueprint — carries the
+  raw value.
+- A value that does not fit its format — `–`, `12 GB`, a date in another
+  notation — is shown as it is, following `format` like any other value. A
+  formatted value is plain text.
+- Any other `format` is refused with `400`.
 
 ## Entities per channel
 

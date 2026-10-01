@@ -27,6 +27,13 @@ instructions are appended by the workflow and do not belong in an entry.
   row. A row has as many columns as its spans add up to, so rows with the same
   sum line up. At most 6 columns per row; a span that does not fit is
   shortened. Grids without `span` look as before.
+- **Value formats** — `"format"` on a grid field, or on a table column for all
+  of its cells, has the card write a raw value in the viewer's language:
+  `bytes` (binary units, `1.23 GiB`), `bytes_si` (SI units, `1.32 GB`),
+  `duration` (seconds, `14m 7s`), `datetime` (Unix seconds or ISO 8601) and
+  `number` (grouped digits). The value is stored and sent on in the event as
+  it came; one that does not fit its format is shown unchanged. An unknown
+  format is refused with `400`.
 
 ### Changed
 
