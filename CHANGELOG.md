@@ -10,6 +10,8 @@ instructions are appended by the workflow and do not belong in an entry.
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-10-07
+
 ### Added
 
 - **Compact and detailed messages in the card** — a message can be shown as
@@ -246,6 +248,7 @@ Message text is never turned into HTML. The card parses a Discord-flavored
 markdown subset into a typed tree and builds its elements from it, so foreign
 text structurally cannot inject markup.
 
+[1.3.0]: https://github.com/stefgo/ha-log-notifier/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/stefgo/ha-log-notifier/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/stefgo/ha-log-notifier/compare/v1.0.7...v1.1.0
 [1.0.7]: https://github.com/stefgo/ha-log-notifier/compare/v1.0.6...v1.0.7
