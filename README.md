@@ -470,6 +470,10 @@ An unknown level in `levels` or an invalid value for `layout`, `mark_read` or
 `height` makes the card stop with an error message instead of silently showing
 something else.
 
+The card's own texts follow the language of the Home Assistant user profile:
+English and German are included, every other language gets English. The level
+names stay `ERROR`, `WARNING`, `INFO` and `TRACE` in any language.
+
 ### `layout`
 
 | Value | Behavior |

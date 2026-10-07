@@ -18,6 +18,7 @@ import {
   markRead,
   subscribe,
 } from "./api";
+import { TextKey, localize } from "./i18n";
 import { LEVELS, levelColor, levelIcon } from "./levels";
 import { toPlainText } from "./markdown";
 import { renderBlocks, renderMarkdown, renderPlain } from "./render";
@@ -402,7 +403,7 @@ export class LogNotifierCard extends LitElement {
       this._error = null;
       if (this._split && !this._selected) await this._selectFirst();
     } catch (err) {
-      this._error = `Could not load channels: ${err}`;
+      this._error = this._t("error_channels", { error: String(err) });
     }
   }
 
@@ -444,7 +445,7 @@ export class LogNotifierCard extends LitElement {
       this._hasMore = page.length === limit;
       this._error = null;
     } catch (err) {
-      this._error = `Could not load messages: ${err}`;
+      this._error = this._t("error_messages", { error: String(err) });
     } finally {
       this._loading = false;
     }
@@ -479,7 +480,8 @@ export class LogNotifierCard extends LitElement {
   private async _clear(): Promise<void> {
     if (!this.hass || !this._selected) return;
     const channel = this._channelById(this._selected);
-    if (!confirm(`Delete all messages in "${channel?.name}"?`)) return;
+    const question = this._t("clear_confirm", { name: channel?.name ?? "" });
+    if (!confirm(question)) return;
     await clearChannel(this.hass, this._selected);
     this._messages = [];
     await this._loadChannels();
@@ -502,12 +504,17 @@ export class LogNotifierCard extends LitElement {
     return this.hass?.locale?.language ?? this.hass?.language ?? "en";
   }
 
+  /** A UI text in the viewer's language. */
+  private _t(key: TextKey, values?: Record<string, string>): string {
+    return localize(this._locale, key, values);
+  }
+
   private _formatTime(ts: number): string {
     const date = new Date(ts * 1000);
     const locale = this._locale;
     const diff = (Date.now() - date.getTime()) / 1000;
     // Recent messages relative ("5 min ago"), older ones with a date.
-    if (diff < 60) return "just now";
+    if (diff < 60) return this._t("just_now");
     const relative = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
     if (diff < 3600) return relative.format(-Math.round(diff / 60), "minute");
     if (diff < 86400) return relative.format(-Math.round(diff / 3600), "hour");
@@ -535,7 +542,7 @@ export class LogNotifierCard extends LitElement {
             <div class="pane pane-detail">
               ${this._selected
                 ? this._renderChannel(false)
-                : html`<div class="empty">Select a channel.</div>`}
+                : html`<div class="empty">${this._t("select_channel")}</div>`}
               ${error}
             </div>
           </div>
@@ -639,7 +646,7 @@ export class LogNotifierCard extends LitElement {
         ${withBack
           ? html`<ha-icon-button
               .path=${"M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"}
-              label="Back"
+              label=${this._t("back")}
               @click=${() => {
                 this._selected = null;
                 void this._loadChannels();
@@ -652,15 +659,15 @@ export class LogNotifierCard extends LitElement {
               class="text-button"
               @click=${() => this._setViewMode(anyCompact ? "detail" : "compact")}
             >
-              ${anyCompact ? "Show detail" : "Show compact"}
+              ${this._t(anyCompact ? "show_detail" : "show_compact")}
             </button>`
           : nothing}
         <button class="text-button" @click=${() => this._markRead()}>
-          Mark all read
+          ${this._t("mark_all_read")}
         </button>
         ${isAdmin
           ? html`<button class="text-button danger" @click=${() => this._clear()}>
-              Clear
+              ${this._t("clear")}
             </button>`
           : nothing}
       </div>
@@ -682,11 +689,9 @@ export class LogNotifierCard extends LitElement {
       </div>
       <div class="messages">
         ${this._levels.length === 0
-          ? html`<div class="empty">
-              No level selected — switch on at least one above.
-            </div>`
+          ? html`<div class="empty">${this._t("no_level")}</div>`
           : this._messages.length === 0 && !this._loading
-          ? html`<div class="empty">No messages.</div>`
+          ? html`<div class="empty">${this._t("no_messages")}</div>`
           : this._renderMessages(view)}
         ${this._hasMore
           ? html`<button
@@ -695,7 +700,7 @@ export class LogNotifierCard extends LitElement {
               @click=${() =>
                 this._loadMessages(this._messages[this._messages.length - 1]?.id)}
             >
-              ${this._loading ? "Loading …" : "Load older"}
+              ${this._t(this._loading ? "loading" : "load_older")}
             </button>`
           : nothing}
       </div>
@@ -736,7 +741,9 @@ export class LogNotifierCard extends LitElement {
   }
 
   private _renderNewDivider() {
-    return html`<div class="new-divider" role="separator"><span>↑ New</span></div>`;
+    return html`<div class="new-divider" role="separator">
+      <span>↑ ${this._t("new_divider")}</span>
+    </div>`;
   }
 
   /**

@@ -4,8 +4,20 @@ import { LitElement, html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 
 import { fetchChannels } from "./api";
+import { TextKey, localize } from "./i18n";
 import { LEVELS } from "./levels";
 import type { ChannelSummary, HomeAssistant, LogNotifierCardConfig } from "./types";
+
+/** Text of each form field's label, by the field's name. */
+const LABELS: Readonly<Record<string, TextKey | undefined>> = {
+  title: "editor_title",
+  channels: "editor_channels",
+  levels: "editor_levels",
+  layout: "editor_layout",
+  height: "editor_height",
+  page_size: "editor_page_size",
+  mark_read: "editor_mark_read",
+};
 
 @customElement("log-notifier-card-editor")
 export class LogNotifierCardEditor extends LitElement {
@@ -24,6 +36,10 @@ export class LogNotifierCardEditor extends LitElement {
         this._channels = channels;
       });
     }
+  }
+
+  private _t(key: TextKey): string {
+    return localize(this.hass?.locale?.language ?? this.hass?.language, key);
   }
 
   private get _schema() {
@@ -54,9 +70,9 @@ export class LogNotifierCardEditor extends LitElement {
           select: {
             mode: "dropdown",
             options: [
-              { value: "auto", label: "Automatic" },
-              { value: "split", label: "Always two columns" },
-              { value: "stacked", label: "Always stacked" },
+              { value: "auto", label: this._t("layout_auto") },
+              { value: "split", label: this._t("layout_split") },
+              { value: "stacked", label: this._t("layout_stacked") },
             ],
           },
         },
@@ -72,9 +88,9 @@ export class LogNotifierCardEditor extends LitElement {
           select: {
             mode: "dropdown",
             options: [
-              { value: "manual", label: "Button only" },
-              { value: "visible", label: "When everything was seen" },
-              { value: "open", label: "When the channel is opened" },
+              { value: "manual", label: this._t("mark_read_manual") },
+              { value: "visible", label: this._t("mark_read_visible") },
+              { value: "open", label: this._t("mark_read_open") },
             ],
           },
         },
@@ -82,16 +98,10 @@ export class LogNotifierCardEditor extends LitElement {
     ];
   }
 
-  private _label = (schema: { name: string }): string =>
-    ({
-      title: "Title",
-      channels: "Channels (empty = all)",
-      levels: "Displayed levels (empty = all)",
-      layout: "Layout",
-      height: "Height (e.g. 70vh or 500px)",
-      page_size: "Messages per load step",
-      mark_read: "Mark as read",
-    })[schema.name] ?? schema.name;
+  private _label = (schema: { name: string }): string => {
+    const key = LABELS[schema.name];
+    return key ? this._t(key) : schema.name;
+  };
 
   private _valueChanged(event: CustomEvent): void {
     const value = { ...event.detail.value };

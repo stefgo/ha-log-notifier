@@ -228,5 +228,12 @@ names in `services.yaml`, the `SERVICE_*` constants in `services.py` and the
 `services` block in `strings.json` are cross-checked by the same test.
 
 Code, comments and docs are English. `translations/de.json` is the one
-intentional exception (it is a UI translation, not project content). Card UI
-strings are hard-coded English — the card has no i18n layer.
+intentional exception (it is a UI translation, not project content).
+
+The card gets nothing from Home Assistant's translations and carries its own:
+`card/src/i18n.ts` holds one table per language (English as source and
+fallback, German), picked by the language of the HA user profile. The tables
+are typed against the English one, so a missing key fails the type check. Not
+translated on purpose: the level names, the errors `setConfig` throws and the
+entry in the card picker — the last two arise before the card knows a
+language.

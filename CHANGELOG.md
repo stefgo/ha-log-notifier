@@ -22,6 +22,9 @@ instructions are appended by the workflow and do not belong in an entry.
   the ingest URL of every channel, so it no longer takes opening each channel
   for editing. The URLs are now shown complete, with the address Home
   Assistant is reached under, instead of the path alone.
+- **The card speaks German** — the card and its visual editor now show their
+  texts in the language of the Home Assistant user profile. English and German
+  are included; every other language gets English as before.
 
 ### Changed
 
