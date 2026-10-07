@@ -16,12 +16,13 @@
         "title": "Channels",
         "menu_options": {
           "add_channel": "Add channel",
-          "select_channel": "Edit channel"
+          "select_channel": "Edit channel",
+          "show_urls": "Show URLs"
         }
       },
       "add_channel": {
         "title": "Add channel",
-        "description": "The ingest token is generated automatically and can be viewed while editing the channel.",
+        "description": "The ingest token is generated automatically. The channel's URL is listed afterwards under Show URLs.",
         "data": {
           "name": "Name",
           "icon": "Icon",
@@ -29,6 +30,10 @@
           "max_messages": "Keep messages (count)",
           "max_age_days": "Keep messages (days, 0 = unlimited)"
         }
+      },
+      "show_urls": {
+        "title": "Ingest URLs",
+        "description": "{urls}\n\nEvery URL contains its channel's token — treat it like a password."
       },
       "select_channel": {
         "title": "Edit channel",

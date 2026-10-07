@@ -14,6 +14,7 @@ from homeassistant.config_entries import (
 )
 from homeassistant.core import callback
 from homeassistant.helpers import selector
+from homeassistant.helpers.network import NoURLAvailableError, get_url
 
 from .const import (
     CONF_BADGE_LEVELS,
@@ -126,14 +127,47 @@ class LogNotifierOptionsFlow(OptionsFlow):
     def _save(self, channels: dict[str, dict[str, Any]]) -> ConfigFlowResult:
         return self.async_create_entry(data={CONF_CHANNELS: channels})
 
+    def _ingest_url(self, token: str) -> str:
+        """Ingest URL of a channel, as complete as Home Assistant can tell.
+
+        The address the dialog was opened under comes first — it is the one
+        known to work. Without one the configured URL serves, and if there is
+        none either, the bare path is left.
+        """
+        path = f"/api/{DOMAIN}/ingest/{token}"
+        for current_request in (True, False):
+            try:
+                base = get_url(self.hass, require_current_request=current_request)
+            except NoURLAvailableError:
+                continue
+            return f"{base}{path}"
+        return path
+
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Menu: create a new channel or edit an existing one."""
+        """Menu: create a channel, edit one or look up the ingest URLs."""
         menu = ["add_channel"]
         if self._channels:
-            menu.append("select_channel")
+            menu.extend(["select_channel", "show_urls"])
         return self.async_show_menu(step_id="init", menu_options=menu)
+
+    async def async_step_show_urls(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """List the ingest URL of every channel; submitting leads back to the menu."""
+        if user_input is not None:
+            return await self.async_step_init()
+        urls = "\n".join(
+            f"- **{data.get(CONF_NAME, channel_id)}**: "
+            f"`{self._ingest_url(data.get(CONF_TOKEN, ''))}`"
+            for channel_id, data in self._channels.items()
+        )
+        return self.async_show_form(
+            step_id="show_urls",
+            data_schema=vol.Schema({}),
+            description_placeholders={"urls": urls},
+        )
 
     async def async_step_add_channel(
         self, user_input: dict[str, Any] | None = None
@@ -201,7 +235,7 @@ class LogNotifierOptionsFlow(OptionsFlow):
                 data_schema=_channel_schema(current, editing=True),
                 description_placeholders={
                     "name": current.get(CONF_NAME, channel_id),
-                    "url": f"/api/{DOMAIN}/ingest/{current.get(CONF_TOKEN, '')}",
+                    "url": self._ingest_url(current.get(CONF_TOKEN, "")),
                 },
             )
 

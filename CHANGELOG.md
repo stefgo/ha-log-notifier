@@ -18,6 +18,10 @@ instructions are appended by the workflow and do not belong in an entry.
   toolbar switches all read ones, a click on a head line a single one; an
   unread message always stays in detail. A compact message without a title
   shows the first line of its text.
+- **"Show URLs" in the integration's menu** — **Configure → Show URLs** lists
+  the ingest URL of every channel, so it no longer takes opening each channel
+  for editing. The URLs are now shown complete, with the address Home
+  Assistant is reached under, instead of the path alone.
 
 ### Changed
 

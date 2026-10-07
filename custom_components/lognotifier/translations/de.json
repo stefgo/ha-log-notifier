@@ -16,12 +16,13 @@
         "title": "Kanäle",
         "menu_options": {
           "add_channel": "Kanal anlegen",
-          "select_channel": "Kanal bearbeiten"
+          "select_channel": "Kanal bearbeiten",
+          "show_urls": "URLs anzeigen"
         }
       },
       "add_channel": {
         "title": "Kanal anlegen",
-        "description": "Der Ingest-Token wird automatisch erzeugt und ist beim Bearbeiten des Kanals einsehbar.",
+        "description": "Der Ingest-Token wird automatisch erzeugt. Die URL des Kanals steht danach unter „URLs anzeigen“.",
         "data": {
           "name": "Name",
           "icon": "Symbol",
@@ -29,6 +30,10 @@
           "max_messages": "Meldungen aufbewahren (Anzahl)",
           "max_age_days": "Meldungen aufbewahren (Tage, 0 = unbegrenzt)"
         }
+      },
+      "show_urls": {
+        "title": "Ingest-URLs",
+        "description": "{urls}\n\nJede URL enthält den Token ihres Kanals — behandle sie wie ein Passwort."
       },
       "select_channel": {
         "title": "Kanal bearbeiten",

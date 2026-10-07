@@ -100,6 +100,29 @@ async def _open_channel_editor(hass: HomeAssistant, entry, channel_id: str):
     )
 
 
+async def test_show_urls_lists_every_channel(hass: HomeAssistant, setup_entry) -> None:
+    """The menu leads to the ingest URLs — and from there back to the menu."""
+    channels = setup_entry.options[CONF_CHANNELS]
+    result = await hass.config_entries.options.async_init(setup_entry.entry_id)
+    assert "show_urls" in result["menu_options"]
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "show_urls"}
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    urls = result["description_placeholders"]["urls"]
+    assert channels
+    for data in channels.values():
+        assert data[CONF_NAME] in urls
+        assert f"/api/{DOMAIN}/ingest/{data[CONF_TOKEN]}`" in urls
+
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {})
+
+    assert result["type"] is FlowResultType.MENU
+    assert setup_entry.options[CONF_CHANNELS] == channels
+
+
 async def test_edit_channel_changes_the_name(hass: HomeAssistant, setup_entry) -> None:
     """Editing goes through select → edit and keeps the token."""
     before = setup_entry.options[CONF_CHANNELS]["backups"][CONF_TOKEN]

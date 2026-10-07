@@ -72,8 +72,9 @@ After the restart:
 **Settings → Devices & services → Add integration → Log Notifier**.
 There is only one instance; everything beyond that is channels.
 
-Channels are then created under **Configure**. When editing a channel, the
-dialog shows its ingest URL; the token can be regenerated there as well.
+Channels are then created under **Configure**. **Show URLs** in the same menu
+lists the ingest URL of every channel; the dialog for editing a channel shows
+its URL too, and the token can be regenerated there.
 
 Every channel is exposed as a device. Renaming works from both sides: via
 **Configure → Edit channel** or directly on the device — the device name then
