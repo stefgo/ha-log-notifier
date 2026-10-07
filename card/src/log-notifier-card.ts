@@ -28,6 +28,14 @@ import type {
   LogMessage,
   LogNotifierCardConfig,
 } from "./types";
+import {
+  ViewMode,
+  ViewState,
+  isCompact,
+  isUnread,
+  previewText,
+  summaryLine,
+} from "./view";
 
 /** Default height of the message area. */
 const DEFAULT_HEIGHT = "70vh";
@@ -89,6 +97,10 @@ export class LogNotifierCard extends LitElement {
    * open even after its messages were marked read.
    */
   @state() private _dividerReadId: number | null = null;
+  /** Form of all messages; "auto" until the header switch is used. */
+  @state() private _viewMode: ViewMode = "auto";
+  /** Messages switched individually — each the opposite of the view mode. */
+  @state() private _toggled: ReadonlySet<number> = new Set();
   @state() private _error: string | null = null;
   @state() private _wide = false;
 
@@ -397,6 +409,8 @@ export class LogNotifierCard extends LitElement {
   private async _openChannel(channelId: string): Promise<void> {
     this._selected = channelId;
     this._dividerReadId = this._channelById(channelId)?.last_read_id ?? null;
+    this._viewMode = "auto";
+    this._toggled = new Set();
     this._messages = [];
     // "Seen" is counted per channel — otherwise a switch would drag the state
     // of the previous one along.
@@ -442,6 +456,24 @@ export class LogNotifierCard extends LitElement {
     this._channels = this._channels.map((channel) =>
       channel.id === summary.id ? summary : channel,
     );
+  }
+
+  /** Puts every message into one form, dropping the individual switches. */
+  private _setViewMode(mode: ViewMode): void {
+    this._viewMode = mode;
+    this._toggled = new Set();
+  }
+
+  private _toggleMessage(id: number): void {
+    const toggled = new Set(this._toggled);
+    if (!toggled.delete(id)) toggled.add(id);
+    this._toggled = toggled;
+  }
+
+  private _onHeadKeydown(event: KeyboardEvent, id: number): void {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    this._toggleMessage(id);
   }
 
   private async _clear(): Promise<void> {
@@ -594,6 +626,14 @@ export class LogNotifierCard extends LitElement {
     const channel = this._selected ? this._channelById(this._selected) : undefined;
     if (!channel) return nothing;
     const isAdmin = this.hass?.user?.is_admin ?? false;
+    const view: ViewState = {
+      readId: channel.last_read_id,
+      openedReadId: this._dividerReadId ?? channel.last_read_id,
+      mode: this._viewMode,
+      toggled: this._toggled,
+    };
+    // The switch offers "detail" as long as anything is still compact.
+    const anyCompact = this._messages.some((message) => isCompact(message.id, view));
     return html`
       <div class="toolbar">
         ${withBack
@@ -607,6 +647,14 @@ export class LogNotifierCard extends LitElement {
             ></ha-icon-button>`
           : nothing}
         <div class="toolbar-title">${channel.name}</div>
+        ${this._messages.length > 0
+          ? html`<button
+              class="text-button"
+              @click=${() => this._setViewMode(anyCompact ? "detail" : "compact")}
+            >
+              ${anyCompact ? "Show detail" : "Show compact"}
+            </button>`
+          : nothing}
         <button class="text-button" @click=${() => this._markRead()}>
           Mark all read
         </button>
@@ -639,7 +687,7 @@ export class LogNotifierCard extends LitElement {
             </div>`
           : this._messages.length === 0 && !this._loading
           ? html`<div class="empty">No messages.</div>`
-          : this._renderMessages(this._dividerReadId ?? channel.last_read_id)}
+          : this._renderMessages(view)}
         ${this._hasMore
           ? html`<button
               class="text-button more"
@@ -666,9 +714,9 @@ export class LogNotifierCard extends LitElement {
    * marking read must not make the divider vanish under the reader's eyes. It
    * is gone the next time the channel is opened with nothing unread.
    */
-  private _renderMessages(lastReadId: number) {
+  private _renderMessages(view: ViewState) {
     const firstRead = this._messages.findIndex(
-      (message) => message.id <= lastReadId,
+      (message) => message.id <= view.openedReadId,
     );
     const allUnread =
       firstRead === -1 && this._messages.length > 0 && !this._hasMore;
@@ -676,7 +724,11 @@ export class LogNotifierCard extends LitElement {
       ${this._messages.map(
         (message, index) => html`
           ${index === firstRead && index > 0 ? this._renderNewDivider() : nothing}
-          ${this._renderMessage(message)}
+          ${this._renderMessage(
+            message,
+            isCompact(message.id, view),
+            !isUnread(message.id, view),
+          )}
         `,
       )}
       ${allUnread ? this._renderNewDivider() : nothing}
@@ -687,15 +739,31 @@ export class LogNotifierCard extends LitElement {
     return html`<div class="new-divider" role="separator"><span>↑ New</span></div>`;
   }
 
-  private _renderMessage(message: LogMessage) {
+  /**
+   * One message, compact (head line only) or in detail. The head line toggles
+   * between the two — unless the message is unread, which keeps it in detail.
+   * Compact, a message without a title shows the first line of its body in the
+   * title's place.
+   */
+  private _renderMessage(message: LogMessage, compact: boolean, togglable: boolean) {
     const color = levelColor(message.level);
+    const summary = compact && !message.title ? summaryLine(message) : "";
     return html`
       <div
-        class="message"
+        class="message ${compact ? "compact" : ""}"
         data-id=${message.id}
         style=${`border-left-color:${color}`}
       >
-        <div class="message-head">
+        <div
+          class="message-head ${togglable ? "togglable" : ""}"
+          role=${togglable ? "button" : nothing}
+          tabindex=${togglable ? "0" : nothing}
+          aria-expanded=${togglable ? String(!compact) : nothing}
+          @click=${togglable ? () => this._toggleMessage(message.id) : nothing}
+          @keydown=${togglable
+            ? (event: KeyboardEvent) => this._onHeadKeydown(event, message.id)
+            : nothing}
+        >
           <ha-icon
             class="level-icon"
             style=${`color:${color}`}
@@ -703,25 +771,32 @@ export class LogNotifierCard extends LitElement {
           ></ha-icon>
           <span class="level" style=${`color:${color}`}>${message.level}</span>
           ${message.title ? html`<span class="title">${message.title}</span>` : nothing}
+          ${summary ? html`<span class="summary">${summary}</span>` : nothing}
           <span class="spacer"></span>
           ${message.source ? html`<span class="source">${message.source}</span>` : nothing}
           <span class="time">${this._formatTime(message.ts)}</span>
         </div>
-        <div class="body">
-          ${!message.content
-            ? nothing
-            : message.format === "plain"
-              ? renderPlain(message.content)
-              : renderMarkdown(message.content)}
-          ${message.blocks?.length
-            ? renderBlocks(message.blocks, message.format === "plain", this._locale)
-            : nothing}
-        </div>
-        ${message.tags?.length
-          ? html`<div class="tags">
-              ${message.tags.map((tag) => html`<span class="tag">${tag}</span>`)}
-            </div>`
-          : nothing}
+        ${compact
+          ? nothing
+          : html`<div class="body">
+                ${!message.content
+                  ? nothing
+                  : message.format === "plain"
+                    ? renderPlain(message.content)
+                    : renderMarkdown(message.content)}
+                ${message.blocks?.length
+                  ? renderBlocks(
+                      message.blocks,
+                      message.format === "plain",
+                      this._locale,
+                    )
+                  : nothing}
+              </div>
+              ${message.tags?.length
+                ? html`<div class="tags">
+                    ${message.tags.map((tag) => html`<span class="tag">${tag}</span>`)}
+                  </div>`
+                : nothing}`}
       </div>
     `;
   }
@@ -983,6 +1058,34 @@ export class LogNotifierCard extends LitElement {
       font-size: 12px;
       margin-bottom: 4px;
     }
+    .message-head.togglable {
+      cursor: pointer;
+    }
+    .message-head:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+    /* Compact: the head line is all there is, and it stays one line. */
+    .message.compact .message-head {
+      margin-bottom: 0;
+    }
+    .message.compact .title,
+    .summary {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .summary {
+      color: var(--secondary-text-color);
+    }
+    .message.compact .level,
+    .message.compact .source,
+    .message.compact .time {
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
     .level-icon {
       --mdc-icon-size: 16px;
     }
@@ -1142,24 +1245,6 @@ export class LogNotifierCard extends LitElement {
       color: inherit;
     }
   `;
-}
-
-/** Text for the channel preview — a message may consist of blocks alone. */
-function previewText(message: LogMessage): string {
-  if (message.title) return message.title;
-  if (message.content) return message.content;
-  for (const block of message.blocks ?? []) {
-    if (block.type === "text") return block.text;
-  }
-  for (const block of message.blocks ?? []) {
-    const first = block.type === "fields" ? block.rows[0]?.[0] : undefined;
-    if (first) return [first.label, first.value].filter(Boolean).join(": ");
-  }
-  for (const block of message.blocks ?? []) {
-    if (block.type !== "table" || !block.rows.length) continue;
-    return [block.columns[0]?.label, block.rows[0][0]].filter(Boolean).join(": ");
-  }
-  return "";
 }
 
 declare global {

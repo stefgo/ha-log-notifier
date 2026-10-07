@@ -10,6 +10,15 @@ instructions are appended by the workflow and do not belong in an entry.
 
 ## [Unreleased]
 
+### Added
+
+- **Compact and detailed messages in the card** — a message can be shown as
+  its head line alone. When a channel is opened, the messages already read are
+  compact and the unread ones in detail. "Show detail" / "Show compact" in the
+  toolbar switches all read ones, a click on a head line a single one; an
+  unread message always stays in detail. A compact message without a title
+  shows the first line of its text.
+
 ### Changed
 
 - **Unread marker in the card** — a red "New" line now marks the read position

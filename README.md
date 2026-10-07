@@ -539,6 +539,16 @@ Next to them "Mark all read" (moves the read position to the newest message)
 and — for administrators only — "Clear", which empties the channel for good.
 Spoilers only reveal their content on click.
 
+A message is shown either in detail or compact, as its head line alone: level,
+title, source and time. A compact message without a title shows the first line
+of its text instead. When a channel is opened, the messages already read are
+compact and the unread ones in detail; "Show detail" / "Show compact" in the
+toolbar puts all read ones into one form, including those loaded afterwards. A
+click on a head line switches that single message. An unread message is always
+shown in detail, whatever the switch says. Marking messages read does not
+collapse them on its own — the default applies again the next time the channel
+is opened.
+
 ### Examples
 
 ```yaml
