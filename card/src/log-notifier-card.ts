@@ -83,6 +83,12 @@ export class LogNotifierCard extends LitElement {
   @state() private _levels: Level[] = [...LEVELS];
   @state() private _loading = false;
   @state() private _hasMore = false;
+  /**
+   * Read position at the moment the channel was opened; the "New" divider is
+   * drawn there. A snapshot, so the divider stays put while the channel is
+   * open even after its messages were marked read.
+   */
+  @state() private _dividerReadId: number | null = null;
   @state() private _error: string | null = null;
   @state() private _wide = false;
 
@@ -94,12 +100,17 @@ export class LogNotifierCard extends LitElement {
   private _height = DEFAULT_HEIGHT;
   private _seen = new Set<number>();
   private _dwellTimers = new Map<number, ReturnType<typeof setTimeout>>();
+  /** IDs of messages that arrived live and still have to slide in. */
+  private _arrived: number[] = [];
 
   /**
    * This is how long a message has to stay visible before it counts as seen —
    * scrolling past quickly should not acknowledge anything.
    */
   private static readonly DWELL_MS = 400;
+
+  /** Duration of the slide-in of a message that arrives live. */
+  private static readonly SLIDE_MS = 250;
 
   /**
    * From this width on, channel list and messages fit side by side. What is
@@ -162,6 +173,35 @@ export class LogNotifierCard extends LitElement {
     }
     // Re-attach after every render: the message elements are different ones.
     this._observeMessages();
+    this._slideInArrived();
+  }
+
+  /**
+   * Lets the messages that just arrived live slide in from the top.
+   *
+   * The top margin runs from minus the element's height to its normal value,
+   * so the message grows out of the upper edge and pushes the older ones down
+   * instead of making them jump. Loaded pages are not animated — only what
+   * arrives while the channel is open.
+   */
+  private _slideInArrived(): void {
+    const arrived = this._arrived;
+    if (arrived.length === 0) return;
+    this._arrived = [];
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    for (const id of arrived) {
+      const element = this.renderRoot.querySelector<HTMLElement>(
+        `.message[data-id="${id}"]`,
+      );
+      if (!element || typeof element.animate !== "function") continue;
+      element.animate(
+        [
+          { marginTop: `-${element.offsetHeight}px`, opacity: 0 },
+          { marginTop: getComputedStyle(element).marginTop, opacity: 1 },
+        ],
+        { duration: LogNotifierCard.SLIDE_MS, easing: "ease-out" },
+      );
+    }
   }
 
   public connectedCallback(): void {
@@ -326,6 +366,7 @@ export class LogNotifierCard extends LitElement {
       this._levels.includes(event.message.level)
     ) {
       this._messages = [event.message, ...this._messages];
+      this._arrived.push(event.message.id);
       // With "open" the opened channel counts as reviewed, including what
       // arrives afterwards; with "visible" the observer decides.
       if (this._config.mark_read === "open") {
@@ -355,6 +396,7 @@ export class LogNotifierCard extends LitElement {
 
   private async _openChannel(channelId: string): Promise<void> {
     this._selected = channelId;
+    this._dividerReadId = this._channelById(channelId)?.last_read_id ?? null;
     this._messages = [];
     // "Seen" is counted per channel — otherwise a switch would drag the state
     // of the previous one along.
@@ -597,9 +639,7 @@ export class LogNotifierCard extends LitElement {
             </div>`
           : this._messages.length === 0 && !this._loading
           ? html`<div class="empty">No messages.</div>`
-          : this._messages.map((message) =>
-              this._renderMessage(message, channel.last_read_id),
-            )}
+          : this._renderMessages(this._dividerReadId ?? channel.last_read_id)}
         ${this._hasMore
           ? html`<button
               class="text-button more"
@@ -614,11 +654,44 @@ export class LogNotifierCard extends LitElement {
     `;
   }
 
-  private _renderMessage(message: LogMessage, lastReadId: number) {
+  /**
+   * The message stream with the "New" divider at the read position.
+   *
+   * Messages are listed newest first, so everything above the divider is
+   * unread. It sits in front of the first read message; if every message is
+   * unread it closes the list — but only once nothing older is left to load,
+   * because until then the read position may lie below the loaded page.
+   *
+   * The position is the one from opening the channel, not the live one:
+   * marking read must not make the divider vanish under the reader's eyes. It
+   * is gone the next time the channel is opened with nothing unread.
+   */
+  private _renderMessages(lastReadId: number) {
+    const firstRead = this._messages.findIndex(
+      (message) => message.id <= lastReadId,
+    );
+    const allUnread =
+      firstRead === -1 && this._messages.length > 0 && !this._hasMore;
+    return html`
+      ${this._messages.map(
+        (message, index) => html`
+          ${index === firstRead && index > 0 ? this._renderNewDivider() : nothing}
+          ${this._renderMessage(message)}
+        `,
+      )}
+      ${allUnread ? this._renderNewDivider() : nothing}
+    `;
+  }
+
+  private _renderNewDivider() {
+    return html`<div class="new-divider" role="separator"><span>↑ New</span></div>`;
+  }
+
+  private _renderMessage(message: LogMessage) {
     const color = levelColor(message.level);
     return html`
       <div
-        class="message ${message.id > lastReadId ? "unread" : ""}"
+        class="message"
         data-id=${message.id}
         style=${`border-left-color:${color}`}
       >
@@ -883,8 +956,25 @@ export class LogNotifierCard extends LitElement {
       background: var(--secondary-background-color);
       border-radius: 0 6px 6px 0;
     }
-    .message.unread {
-      box-shadow: inset 0 0 0 1px var(--divider-color);
+    /* Marks the read position: everything above it is unread. */
+    .new-divider {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 10px 0;
+      color: var(--error-color);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .new-divider::before,
+    .new-divider::after {
+      content: "";
+      flex: 1;
+      height: 2px;
+      border-radius: 1px;
+      background: var(--error-color);
     }
     .message-head {
       display: flex;

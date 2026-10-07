@@ -10,6 +10,18 @@ instructions are appended by the workflow and do not belong in an entry.
 
 ## [Unreleased]
 
+### Changed
+
+- **Unread marker in the card** — a red "New" line now marks the read position
+  in a channel's message stream: everything above it is unread. The line stays
+  where it is while the channel is open, also after the messages were marked
+  read, and is gone the next time the channel is opened. It replaces the thin
+  frame around unread messages, which was barely visible in most
+  themes.
+- **New messages slide in** — a message that arrives while its channel is open
+  now slides in from the top and pushes the older ones down instead of
+  appearing abruptly. Respects the system's "reduce motion" setting.
+
 ## [1.2.0] — 2026-10-06
 
 ### Added
