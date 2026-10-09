@@ -23,6 +23,7 @@ from .const import (
     STORAGE_VERSION,
 )
 from .device import async_remove_stale_devices, async_track_device_renames
+from .mqtt_ingest import async_setup_mqtt
 from .runtime import LogNotifierConfigEntry, LogNotifierRuntime
 from .services import async_setup_services
 from .store import MessageStore
@@ -69,6 +70,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: LogNotifierConfigEntry) 
     async_remove_stale_devices(hass, entry)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # Per entry, not per instance: the subscriptions follow the channels and
+    # are dropped again when the entry unloads.
+    async_setup_mqtt(hass, entry)
     # On first start nobody is listening yet; after a reload caused by changed
     # channels the open cards pick up their new state here.
     runtime.notify_channels()

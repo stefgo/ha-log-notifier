@@ -75,6 +75,7 @@ CONF_BADGE_LEVELS = "badge_levels"
 CONF_MAX_MESSAGES = "max_messages"
 CONF_MAX_AGE_DAYS = "max_age_days"
 CONF_ENABLED = "enabled"
+CONF_MQTT_TOPIC = "mqtt_topic"
 CONF_ROTATE_TOKEN = "rotate_token"
 CONF_DELETE = "delete"
 
@@ -115,6 +116,10 @@ MAX_TABLE_COLUMNS = 10
 MAX_TABLE_ROWS = 50
 MAX_TABLE_CELLS = 250
 MAX_TABLE_CELL_CHARS = 200
+
+# A topic filter may be 65535 bytes on the wire; nobody types one that long, and
+# the cap keeps the options small.
+MAX_MQTT_TOPIC_CHARS = 250
 
 RATE_LIMIT_PER_MINUTE = 60
 RATE_LIMIT_BURST = 20

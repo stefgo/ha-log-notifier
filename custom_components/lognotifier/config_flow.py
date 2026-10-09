@@ -24,6 +24,7 @@ from .const import (
     CONF_ICON,
     CONF_MAX_AGE_DAYS,
     CONF_MAX_MESSAGES,
+    CONF_MQTT_TOPIC,
     CONF_NAME,
     CONF_ROTATE_TOKEN,
     CONF_TOKEN,
@@ -35,7 +36,12 @@ from .const import (
     MAX_AGE_DAYS_LIMIT,
     MAX_MESSAGES_LIMIT,
 )
-from .models import badge_levels_from_options, new_token, slugify_id
+from .models import (
+    badge_levels_from_options,
+    new_token,
+    normalize_topic_filter,
+    slugify_id,
+)
 
 TITLE = "Log Notifier"
 
@@ -73,6 +79,13 @@ def _channel_schema(defaults: dict[str, Any], *, editing: bool) -> vol.Schema:
             CONF_MAX_AGE_DAYS,
             default=defaults.get(CONF_MAX_AGE_DAYS, DEFAULT_MAX_AGE_DAYS),
         ): vol.All(vol.Coerce(int), vol.Range(min=0, max=MAX_AGE_DAYS_LIMIT)),
+        # A suggested value instead of a default: a default would come back
+        # whenever the field is emptied, and emptying it is how MQTT is
+        # switched off for the channel.
+        vol.Optional(
+            CONF_MQTT_TOPIC,
+            description={"suggested_value": defaults.get(CONF_MQTT_TOPIC, "")},
+        ): str,
     }
     if editing:
         schema[vol.Required(CONF_ENABLED, default=defaults.get(CONF_ENABLED, True))] = (
@@ -127,6 +140,31 @@ class LogNotifierOptionsFlow(OptionsFlow):
     def _save(self, channels: dict[str, dict[str, Any]]) -> ConfigFlowResult:
         return self.async_create_entry(data={CONF_CHANNELS: channels})
 
+    @staticmethod
+    def _topic_error(
+        user_input: dict[str, Any],
+        channels: dict[str, dict[str, Any]],
+        channel_id: str | None,
+    ) -> str | None:
+        """Why the entered MQTT topic cannot be used, if it cannot.
+
+        The same filter on two channels is refused — one message would land
+        in both. Filters that merely overlap through wildcards are left alone;
+        that can be intended.
+        """
+        entered = (user_input.get(CONF_MQTT_TOPIC) or "").strip()
+        if not entered:
+            return None
+        if normalize_topic_filter(entered) is None:
+            return "invalid_topic"
+        if any(
+            other.get(CONF_MQTT_TOPIC) == entered
+            for other_id, other in channels.items()
+            if other_id != channel_id
+        ):
+            return "duplicate_topic"
+        return None
+
     def _ingest_url(self, token: str) -> str:
         """Ingest URL of a channel, as complete as Home Assistant can tell.
 
@@ -161,6 +199,7 @@ class LogNotifierOptionsFlow(OptionsFlow):
         urls = "\n".join(
             f"- **{data.get(CONF_NAME, channel_id)}**: "
             f"`{self._ingest_url(data.get(CONF_TOKEN, ''))}`"
+            + (f" · MQTT `{topic}`" if (topic := data.get(CONF_MQTT_TOPIC)) else "")
             for channel_id, data in self._channels.items()
         )
         return self.async_show_form(
@@ -173,12 +212,14 @@ class LogNotifierOptionsFlow(OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Create a new channel; the token is generated along with it."""
-        if user_input is None:
+        channels = self._channels
+        error = self._topic_error(user_input, channels, None) if user_input else None
+        if user_input is None or error:
             return self.async_show_form(
                 step_id="add_channel",
-                data_schema=_channel_schema({}, editing=False),
+                data_schema=_channel_schema(user_input or {}, editing=False),
+                errors={CONF_MQTT_TOPIC: error} if error else None,
             )
-        channels = self._channels
         channel_id = slugify_id(user_input[CONF_NAME], set(channels))
         channels[channel_id] = {
             CONF_NAME: user_input[CONF_NAME],
@@ -189,6 +230,8 @@ class LogNotifierOptionsFlow(OptionsFlow):
             CONF_MAX_AGE_DAYS: user_input[CONF_MAX_AGE_DAYS],
             CONF_ENABLED: True,
         }
+        if topic := (user_input.get(CONF_MQTT_TOPIC) or "").strip():
+            channels[channel_id][CONF_MQTT_TOPIC] = topic
         return self._save(channels)
 
     async def async_step_select_channel(
@@ -229,19 +272,25 @@ class LogNotifierOptionsFlow(OptionsFlow):
             return await self.async_step_init()
         current = channels[channel_id]
 
-        if user_input is None:
+        # Deleting comes first: a channel on its way out need not have a
+        # valid topic.
+        if user_input and user_input.get(CONF_DELETE):
+            channels.pop(channel_id, None)
+            return self._save(channels)
+
+        error = (
+            self._topic_error(user_input, channels, channel_id) if user_input else None
+        )
+        if user_input is None or error:
             return self.async_show_form(
                 step_id="edit_channel",
-                data_schema=_channel_schema(current, editing=True),
+                data_schema=_channel_schema(user_input or current, editing=True),
+                errors={CONF_MQTT_TOPIC: error} if error else None,
                 description_placeholders={
                     "name": current.get(CONF_NAME, channel_id),
                     "url": self._ingest_url(current.get(CONF_TOKEN, "")),
                 },
             )
-
-        if user_input.get(CONF_DELETE):
-            channels.pop(channel_id, None)
-            return self._save(channels)
 
         current.update(
             {
@@ -253,6 +302,10 @@ class LogNotifierOptionsFlow(OptionsFlow):
                 CONF_ENABLED: user_input[CONF_ENABLED],
             }
         )
+        if topic := (user_input.get(CONF_MQTT_TOPIC) or "").strip():
+            current[CONF_MQTT_TOPIC] = topic
+        else:
+            current.pop(CONF_MQTT_TOPIC, None)
         if user_input.get(CONF_ROTATE_TOKEN):
             current[CONF_TOKEN] = new_token()
         channels[channel_id] = current

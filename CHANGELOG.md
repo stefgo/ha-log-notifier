@@ -10,6 +10,16 @@ instructions are appended by the workflow and do not belong in an entry.
 
 ## [Unreleased]
 
+### Added
+
+- **Messages over MQTT** — a channel can be given an MQTT topic under
+  **Configure → Edit channel** and then takes messages published there, in the
+  same JSON or plain-text format as over its URL. Wildcards (`+`, `#`) collect
+  several topics in one channel. It uses the connection of Home Assistant's
+  MQTT integration, which stays optional: without a topic nothing changes.
+  Retained messages are ignored, and who may publish is up to the broker —
+  a topic has no token. **Show URLs** lists the topics next to the URLs.
+
 ## [1.3.0] — 2026-10-07
 
 ### Added

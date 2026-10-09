@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -341,6 +342,40 @@ def parse_text(
         title=default_title or None,
         source=default_source or None,
         format=FORMAT_PLAIN,
+    )
+
+
+def parse_body(
+    raw: bytes,
+    *,
+    is_json: bool = False,
+    default_level: str | None = None,
+    default_source: str | None = None,
+    default_title: str | None = None,
+) -> ParsedMessage:
+    """Turn a raw body into a message — the part every transport shares.
+
+    ``is_json`` is what the transport knows about the body (a content type);
+    without it a body that starts with ``{`` is still taken as JSON, anything
+    else as plain text.
+    """
+    try:
+        body = raw.decode("utf-8")
+    except UnicodeDecodeError as err:
+        raise PayloadError("Body is not UTF-8") from err
+    if is_json or body.lstrip().startswith("{"):
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError as err:
+            raise PayloadError(f"Invalid JSON: {err.msg}") from err
+        return parse_payload(
+            data, default_level=default_level, default_source=default_source
+        )
+    return parse_text(
+        body,
+        default_level=default_level,
+        default_source=default_source,
+        default_title=default_title,
     )
 
 

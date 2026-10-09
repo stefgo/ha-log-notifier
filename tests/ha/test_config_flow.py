@@ -13,6 +13,7 @@ from custom_components.lognotifier.const import (
     CONF_ENABLED,
     CONF_MAX_AGE_DAYS,
     CONF_MAX_MESSAGES,
+    CONF_MQTT_TOPIC,
     CONF_NAME,
     CONF_ROTATE_TOKEN,
     CONF_TOKEN,
@@ -171,3 +172,96 @@ async def test_deleting_a_channel_removes_it(hass: HomeAssistant, setup_entry) -
 
     assert "backups" not in result["data"][CONF_CHANNELS]
     assert "services" in result["data"][CONF_CHANNELS]
+
+
+async def test_mqtt_topic_is_stored_and_removed_again(
+    hass: HomeAssistant, setup_entry
+) -> None:
+    """The topic is optional: entered it is kept, emptied it is gone."""
+    result = await _open_channel_editor(hass, setup_entry, "backups")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {**CHANNEL_FORM, CONF_ENABLED: True, CONF_MQTT_TOPIC: " logs/backups "},
+    )
+    await hass.async_block_till_done()
+    assert result["data"][CONF_CHANNELS]["backups"][CONF_MQTT_TOPIC] == "logs/backups"
+
+    result = await _open_channel_editor(hass, setup_entry, "backups")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {**CHANNEL_FORM, CONF_ENABLED: True}
+    )
+    await hass.async_block_till_done()
+    assert CONF_MQTT_TOPIC not in result["data"][CONF_CHANNELS]["backups"]
+
+
+async def test_invalid_mqtt_topic_is_refused(hass: HomeAssistant, setup_entry) -> None:
+    """The form comes back with what was entered instead of saving."""
+    result = await hass.config_entries.options.async_init(setup_entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "add_channel"}
+    )
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {**CHANNEL_FORM, CONF_NAME: "Nightly", CONF_MQTT_TOPIC: "logs/#/more"},
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {CONF_MQTT_TOPIC: "invalid_topic"}
+    assert "nightly" not in setup_entry.options[CONF_CHANNELS]
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {**CHANNEL_FORM, CONF_NAME: "Nightly", CONF_MQTT_TOPIC: "logs/#"},
+    )
+    await hass.async_block_till_done()
+    assert result["data"][CONF_CHANNELS]["nightly"][CONF_MQTT_TOPIC] == "logs/#"
+
+
+async def test_mqtt_topic_of_another_channel_is_refused(
+    hass: HomeAssistant, setup_entry
+) -> None:
+    """One message must not land in two channels by accident."""
+    result = await _open_channel_editor(hass, setup_entry, "backups")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {**CHANNEL_FORM, CONF_ENABLED: True, CONF_MQTT_TOPIC: "logs/shared"},
+    )
+    await hass.async_block_till_done()
+
+    result = await _open_channel_editor(hass, setup_entry, "services")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {
+            **CHANNEL_FORM,
+            CONF_NAME: "Services",
+            CONF_ENABLED: True,
+            CONF_MQTT_TOPIC: "logs/shared",
+        },
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {CONF_MQTT_TOPIC: "duplicate_topic"}
+
+    # The channel's own topic is not a duplicate of itself.
+    result = await _open_channel_editor(hass, setup_entry, "backups")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {**CHANNEL_FORM, CONF_ENABLED: True, CONF_MQTT_TOPIC: "logs/shared"},
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+
+async def test_show_urls_names_the_mqtt_topic(hass: HomeAssistant, setup_entry) -> None:
+    result = await _open_channel_editor(hass, setup_entry, "backups")
+    await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {**CHANNEL_FORM, CONF_ENABLED: True, CONF_MQTT_TOPIC: "logs/backups"},
+    )
+    await hass.async_block_till_done()
+
+    result = await hass.config_entries.options.async_init(setup_entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "show_urls"}
+    )
+
+    assert "MQTT `logs/backups`" in result["description_placeholders"]["urls"]

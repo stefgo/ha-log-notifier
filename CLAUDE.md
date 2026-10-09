@@ -124,6 +124,25 @@ identifies and authorizes exactly one channel, Discord-webhook style; a leaked
 token costs that channel only. Token matching uses `hmac.compare_digest`, and
 tokens never appear in logs or diagnostics.
 
+### MQTT is a second transport, and optional
+
+A channel may carry an `mqtt_topic` (a topic filter, wildcards allowed);
+`mqtt_ingest.py` subscribes it through Home Assistant's MQTT client and feeds
+the payload into the same `ingest.parse_body` → `runtime.publish` path the HTTP
+view uses, with the same size and rate limits. The manifest lists `mqtt` under
+`after_dependencies`, never `dependencies`, and the module is imported only
+when a channel has a topic *and* an MQTT entry exists — it pulls in the client
+library, which is not installed without that integration. For the same reason
+topic filters are validated by `models.normalize_topic_filter`, not by HA's
+validator.
+
+Subscriptions are made per entry setup (in a background task, so a slow broker
+does not delay the entities) and dropped on unload — unlike the HTTP view they
+are *not* behind `DATA_SETUP_DONE`. Retained messages are discarded: the broker
+would redeliver them on every reload. There is no token; the broker's ACLs are
+the authorization, and with no response channel a refused message is only
+logged.
+
 ### Levels are a selection, not a threshold
 
 This invariant runs through the whole project: config flow, store queries,
@@ -172,8 +191,8 @@ Three suites, deliberately kept apart:
   **must stay that way**: it covers exactly the modules without a Home
   Assistant import, which are also the ones mypy checks.
 - **`tests/ha/`** — everything that needs the real framework: entry setup and
-  unload, the config and options flow, the ingest HTTP view, the services, the
-  WebSocket commands and diagnostics. Own environment (`.venv-ha`), own
+  unload, the config and options flow, the ingest HTTP view, the MQTT ingest,
+  the services, the WebSocket commands and diagnostics. Own environment (`.venv-ha`), own
   configuration (`pytest_ha.ini`), because pytest.ini next door is set up for
   the framework-free suite.
 - **`card/test/`** — the card's pure modules (vitest). The elements have no

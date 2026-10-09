@@ -74,7 +74,8 @@ There is only one instance; everything beyond that is channels.
 
 Channels are then created under **Configure**. **Show URLs** in the same menu
 lists the ingest URL of every channel; the dialog for editing a channel shows
-its URL too, and the token can be regenerated there.
+its URL too, and the token can be regenerated there. A channel can also be
+given an MQTT topic there, see [Via MQTT](#via-mqtt).
 
 Every channel is exposed as a device. Renaming works from both sides: via
 **Configure → Edit channel** or directly on the device — the device name then
@@ -135,6 +136,39 @@ query parameters `?level=`, `?source=` and `?title=`; with JSON, `level` and
 
 Other error cases: `401` unknown or disabled token, `400` unusable payload or
 unknown level, `503` integration not ready.
+
+### Via MQTT
+
+A channel can listen on an MQTT topic in addition to its URL. Enter the topic
+under **Configure → Edit channel → MQTT topic**; it needs Home Assistant's
+[MQTT integration](https://www.home-assistant.io/integrations/mqtt/) and goes
+through its broker connection. Without a topic nothing changes, and the MQTT
+integration is not required.
+
+```bash
+# JSON — the same fields as over HTTP
+mosquitto_pub -h broker.example -t logs/backups \
+  -m '{"level": "ERROR", "title": "Backup failed", "content": "exit code 2"}'
+
+# Plain text
+journalctl -u myservice -n 20 --no-pager | mosquitto_pub -h broker.example -t logs/myservice -s
+```
+
+A payload that starts with `{` is read as JSON, anything else as plain text.
+There are no query parameters here, so plain text always arrives as `INFO`
+without title or source — send JSON when the level matters.
+
+- **Wildcards** are allowed: `logs/+/backup` or `logs/#` collect several
+  topics in one channel. The same topic cannot be given to two channels.
+- **Retained messages are ignored.** The broker would deliver them again on
+  every restart and reload; publish without `-r`.
+- **There is no token.** Who may publish to the topic is decided by the
+  broker — restrict it with ACLs if the broker is shared.
+- **There is no response.** The limits above apply unchanged, but a message
+  that is too large, over the rate limit or unusable is only reported in Home
+  Assistant's log.
+- If the MQTT integration is added after the topic was entered, reload Log
+  Notifier once.
 
 ### Formatting
 
@@ -672,7 +706,8 @@ manifest, translations and services.
 The suite in `tests/ha/` needs the real framework and therefore its own
 environment: entry setup and unload, the config and options flow (adding,
 editing, rotating a token, deleting a channel), the ingest HTTP view including
-wrong tokens, disabled channels, oversized bodies and the rate limit, the three
+wrong tokens, disabled channels, oversized bodies and the rate limit, the MQTT
+ingest against a mocked broker, the three
 services, the five WebSocket commands including the live subscription, and the
 diagnostics — which are checked to contain no channel token anywhere.
 
