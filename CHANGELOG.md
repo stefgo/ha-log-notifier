@@ -20,7 +20,8 @@ instructions are appended by the workflow and do not belong in an entry.
   several topics in one channel. It uses the connection of Home Assistant's
   MQTT integration, which stays optional: without a topic nothing changes.
   Retained messages are ignored, and who may publish is up to the broker —
-  a topic has no token. **Show URLs** lists the topics next to the URLs.
+  a topic has no token. The dialog suggests `lognotifier/<channel ID>` as the
+  topic, and **Show URLs** lists the topics next to the URLs.
 
 ## [1.3.0] — 2026-10-07
 

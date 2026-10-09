@@ -140,26 +140,30 @@ unknown level, `503` integration not ready.
 ### Via MQTT
 
 A channel can listen on an MQTT topic in addition to its URL. Enter the topic
-under **Configure → Edit channel → MQTT topic**; it needs Home Assistant's
+under **Configure → Edit channel → MQTT topic**. The suggested name is
+`lognotifier/<channel ID>` — the ID stays the same when the channel is
+renamed — and the dialog pre-fills it for a channel without a topic when the
+MQTT integration is set up; empty the field to leave MQTT off. MQTT ingest
+needs Home Assistant's
 [MQTT integration](https://www.home-assistant.io/integrations/mqtt/) and goes
 through its broker connection. Without a topic nothing changes, and the MQTT
 integration is not required.
 
 ```bash
 # JSON — the same fields as over HTTP
-mosquitto_pub -h broker.example -t logs/backups \
+mosquitto_pub -h broker.example -t lognotifier/backups \
   -m '{"level": "ERROR", "title": "Backup failed", "content": "exit code 2"}'
 
 # Plain text
-journalctl -u myservice -n 20 --no-pager | mosquitto_pub -h broker.example -t logs/myservice -s
+journalctl -u myservice -n 20 --no-pager | mosquitto_pub -h broker.example -t lognotifier/myservice -s
 ```
 
 A payload that starts with `{` is read as JSON, anything else as plain text.
 There are no query parameters here, so plain text always arrives as `INFO`
 without title or source — send JSON when the level matters.
 
-- **Wildcards** are allowed: `logs/+/backup` or `logs/#` collect several
-  topics in one channel. The same topic cannot be given to two channels.
+- **Wildcards** are allowed: `lognotifier/backups/#` or `logs/+/backup`
+  collect several topics in one channel. The same topic cannot be given to two channels.
 - **Retained messages are ignored.** The broker would deliver them again on
   every restart and reload; publish without `-r`.
 - **There is no token.** Who may publish to the topic is decided by the

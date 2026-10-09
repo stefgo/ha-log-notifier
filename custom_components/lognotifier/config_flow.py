@@ -165,6 +165,26 @@ class LogNotifierOptionsFlow(OptionsFlow):
             return "duplicate_topic"
         return None
 
+    def _suggested_topic(
+        self, channels: dict[str, dict[str, Any]], channel_id: str
+    ) -> str | None:
+        """The topic to pre-fill for a channel that has none: ``lognotifier/<id>``.
+
+        The ID rather than the name, because it survives a rename. Only for a
+        channel whose topic was never decided — one that was emptied on
+        purpose keeps its empty string and is left alone — and only while the
+        MQTT integration is set up: the pre-filled value is saved with the
+        form, and without MQTT it would do nothing but warn at every start.
+        """
+        if CONF_MQTT_TOPIC in channels[channel_id]:
+            return None
+        if not self.hass.config_entries.async_entries("mqtt"):
+            return None
+        topic = f"{DOMAIN}/{channel_id}"
+        if any(other.get(CONF_MQTT_TOPIC) == topic for other in channels.values()):
+            return None
+        return topic
+
     def _ingest_url(self, token: str) -> str:
         """Ingest URL of a channel, as complete as Home Assistant can tell.
 
@@ -282,9 +302,14 @@ class LogNotifierOptionsFlow(OptionsFlow):
             self._topic_error(user_input, channels, channel_id) if user_input else None
         )
         if user_input is None or error:
+            defaults = user_input or current
+            if user_input is None and (
+                suggested := self._suggested_topic(channels, channel_id)
+            ):
+                defaults = {**current, CONF_MQTT_TOPIC: suggested}
             return self.async_show_form(
                 step_id="edit_channel",
-                data_schema=_channel_schema(user_input or current, editing=True),
+                data_schema=_channel_schema(defaults, editing=True),
                 errors={CONF_MQTT_TOPIC: error} if error else None,
                 description_placeholders={
                     "name": current.get(CONF_NAME, channel_id),
@@ -302,10 +327,9 @@ class LogNotifierOptionsFlow(OptionsFlow):
                 CONF_ENABLED: user_input[CONF_ENABLED],
             }
         )
-        if topic := (user_input.get(CONF_MQTT_TOPIC) or "").strip():
-            current[CONF_MQTT_TOPIC] = topic
-        else:
-            current.pop(CONF_MQTT_TOPIC, None)
+        # Stored even when empty: that is what tells "switched off" apart
+        # from "never decided", which gets a topic suggested.
+        current[CONF_MQTT_TOPIC] = (user_input.get(CONF_MQTT_TOPIC) or "").strip()
         if user_input.get(CONF_ROTATE_TOKEN):
             current[CONF_TOKEN] = new_token()
         channels[channel_id] = current

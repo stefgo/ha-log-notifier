@@ -32,7 +32,7 @@
           "mqtt_topic": "MQTT topic (optional)"
         },
         "data_description": {
-          "mqtt_topic": "Messages published to this topic land in the channel, in the same format as over HTTP. Wildcards (+, #) are allowed. Needs the MQTT integration; leave empty for HTTP only."
+          "mqtt_topic": "Messages published to this topic land in the channel, in the same format as over HTTP. Wildcards (+, #) are allowed. Suggested: lognotifier/ followed by the channel ID, for example lognotifier/backups — pre-filled when editing a channel if the MQTT integration is set up. Leave empty for HTTP only."
         }
       },
       "show_urls": {
@@ -60,7 +60,7 @@
           "delete": "Delete channel"
         },
         "data_description": {
-          "mqtt_topic": "Messages published to this topic land in the channel, in the same format as over HTTP. Wildcards (+, #) are allowed. Needs the MQTT integration; leave empty for HTTP only."
+          "mqtt_topic": "Messages published to this topic land in the channel, in the same format as over HTTP. Wildcards (+, #) are allowed. Suggested: lognotifier/ followed by the channel ID, for example lognotifier/backups — pre-filled when editing a channel if the MQTT integration is set up. Leave empty for HTTP only."
         }
       }
     },

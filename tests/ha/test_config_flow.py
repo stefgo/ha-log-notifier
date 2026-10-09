@@ -191,7 +191,8 @@ async def test_mqtt_topic_is_stored_and_removed_again(
         result["flow_id"], {**CHANNEL_FORM, CONF_ENABLED: True}
     )
     await hass.async_block_till_done()
-    assert CONF_MQTT_TOPIC not in result["data"][CONF_CHANNELS]["backups"]
+    # Kept as an empty string: switched off, not undecided.
+    assert result["data"][CONF_CHANNELS]["backups"][CONF_MQTT_TOPIC] == ""
 
 
 async def test_invalid_mqtt_topic_is_refused(hass: HomeAssistant, setup_entry) -> None:
@@ -265,3 +266,44 @@ async def test_show_urls_names_the_mqtt_topic(hass: HomeAssistant, setup_entry) 
     )
 
     assert "MQTT `logs/backups`" in result["description_placeholders"]["urls"]
+
+
+def _suggested_topic(result) -> str | None:
+    """What the form pre-fills the topic field with."""
+    for key in result["data_schema"].schema:
+        if key == CONF_MQTT_TOPIC:
+            return (key.description or {}).get("suggested_value") or None
+    raise AssertionError("no topic field")
+
+
+async def test_edit_form_suggests_a_topic_with_mqtt(
+    hass: HomeAssistant, mqtt_mock, setup_entry
+) -> None:
+    """Built from the channel ID, which survives a rename."""
+    result = await _open_channel_editor(hass, setup_entry, "backups")
+
+    assert _suggested_topic(result) == f"{DOMAIN}/backups"
+
+
+async def test_edit_form_suggests_no_topic_without_mqtt(
+    hass: HomeAssistant, setup_entry
+) -> None:
+    """The suggestion would be saved — and then only warn at every start."""
+    result = await _open_channel_editor(hass, setup_entry, "backups")
+
+    assert _suggested_topic(result) is None
+
+
+async def test_emptied_topic_is_not_suggested_again(
+    hass: HomeAssistant, mqtt_mock, setup_entry
+) -> None:
+    """Switching MQTT off for a channel has to stick."""
+    result = await _open_channel_editor(hass, setup_entry, "backups")
+    await hass.config_entries.options.async_configure(
+        result["flow_id"], {**CHANNEL_FORM, CONF_ENABLED: True}
+    )
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    result = await _open_channel_editor(hass, setup_entry, "backups")
+
+    assert _suggested_topic(result) is None

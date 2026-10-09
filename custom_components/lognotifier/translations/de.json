@@ -32,7 +32,7 @@
           "mqtt_topic": "MQTT-Topic (optional)"
         },
         "data_description": {
-          "mqtt_topic": "Meldungen, die an dieses Topic gesendet werden, landen im Kanal — im selben Format wie über HTTP. Wildcards (+, #) sind erlaubt. Benötigt die MQTT-Integration; leer lassen für nur HTTP."
+          "mqtt_topic": "Meldungen, die an dieses Topic gesendet werden, landen im Kanal — im selben Format wie über HTTP. Wildcards (+, #) sind erlaubt. Empfohlen: lognotifier/ gefolgt von der Kanal-ID, zum Beispiel lognotifier/backups — beim Bearbeiten eines Kanals vorbelegt, wenn die MQTT-Integration eingerichtet ist. Leer lassen für nur HTTP."
         }
       },
       "show_urls": {
@@ -60,7 +60,7 @@
           "delete": "Kanal löschen"
         },
         "data_description": {
-          "mqtt_topic": "Meldungen, die an dieses Topic gesendet werden, landen im Kanal — im selben Format wie über HTTP. Wildcards (+, #) sind erlaubt. Benötigt die MQTT-Integration; leer lassen für nur HTTP."
+          "mqtt_topic": "Meldungen, die an dieses Topic gesendet werden, landen im Kanal — im selben Format wie über HTTP. Wildcards (+, #) sind erlaubt. Empfohlen: lognotifier/ gefolgt von der Kanal-ID, zum Beispiel lognotifier/backups — beim Bearbeiten eines Kanals vorbelegt, wenn die MQTT-Integration eingerichtet ist. Leer lassen für nur HTTP."
         }
       }
     },
