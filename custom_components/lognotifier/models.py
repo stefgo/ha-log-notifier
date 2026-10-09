@@ -18,6 +18,7 @@ from .const import (
     CONF_ICON,
     CONF_MAX_AGE_DAYS,
     CONF_MAX_MESSAGES,
+    CONF_MQTT_TOPIC,
     CONF_NAME,
     CONF_TOKEN,
     DEFAULT_BADGE_LEVELS,
@@ -40,6 +41,7 @@ from .const import (
     MAX_FIELDS_PER_ROW,
     MAX_GRID_COLUMNS,
     MAX_MESSAGES_LIMIT,
+    MAX_MQTT_TOPIC_CHARS,
     MAX_TABLE_CELL_CHARS,
     MAX_TABLE_CELLS,
     MAX_TABLE_COLUMNS,
@@ -167,6 +169,8 @@ class Channel:
     max_messages: int = DEFAULT_MAX_MESSAGES
     max_age_days: int = DEFAULT_MAX_AGE_DAYS
     enabled: bool = True
+    #: MQTT topic filter this channel also listens on; ``None`` means HTTP only.
+    mqtt_topic: str | None = None
 
     @classmethod
     def from_dict(cls, channel_id: str, data: dict[str, Any]) -> Channel:
@@ -184,11 +188,12 @@ class Channel:
                 data.get(CONF_MAX_AGE_DAYS), DEFAULT_MAX_AGE_DAYS, 0, MAX_AGE_DAYS_LIMIT
             ),
             enabled=bool(data.get(CONF_ENABLED, True)),
+            mqtt_topic=normalize_topic_filter(data.get(CONF_MQTT_TOPIC)),
         )
 
     def to_dict(self) -> dict[str, Any]:
         """Options representation (without the ID — that one is the key)."""
-        return {
+        data: dict[str, Any] = {
             CONF_NAME: self.name,
             CONF_TOKEN: self.token,
             CONF_ICON: self.icon,
@@ -197,6 +202,31 @@ class Channel:
             CONF_MAX_AGE_DAYS: self.max_age_days,
             CONF_ENABLED: self.enabled,
         }
+        if self.mqtt_topic:
+            data[CONF_MQTT_TOPIC] = self.mqtt_topic
+        return data
+
+
+def normalize_topic_filter(value: Any) -> str | None:
+    """A usable MQTT topic filter, or ``None`` for an empty or invalid one.
+
+    The rules are MQTT's own: ``+`` stands for exactly one level and has to
+    fill it, ``#`` stands for the rest and has to be the last level. Checked
+    here rather than with Home Assistant's validator so that the options flow
+    works — and can be tested — without the MQTT integration installed.
+    """
+    if not isinstance(value, str):
+        return None
+    topic = value.strip()
+    if not topic or len(topic) > MAX_MQTT_TOPIC_CHARS or "\0" in topic:
+        return None
+    levels = topic.split("/")
+    for index, level in enumerate(levels):
+        if "#" in level and (level != "#" or index != len(levels) - 1):
+            return None
+        if "+" in level and level != "+":
+            return None
+    return topic
 
 
 def clamp_blocks(blocks: Any, text_budget: int = MAX_CONTENT_CHARS) -> list[Block]:

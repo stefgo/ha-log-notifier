@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hmac
-import json
 import logging
 
 from aiohttp import web
@@ -11,7 +10,7 @@ from homeassistant.components.http import HomeAssistantView
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN, MAX_BODY_BYTES
-from .ingest import PayloadError, parse_payload, parse_text
+from .ingest import PayloadError, parse_body
 from .models import Channel
 from .runtime import LogNotifierRuntime
 
@@ -88,27 +87,13 @@ class LogNotifierIngestView(HomeAssistantView):
 
         query = request.query
         try:
-            body = raw.decode("utf-8")
-        except UnicodeDecodeError:
-            return self.json_message("Body is not UTF-8", 400)
-
-        content_type = (request.content_type or "").lower()
-        try:
-            if content_type == "application/json" or body.lstrip().startswith("{"):
-                parsed = parse_payload(
-                    json.loads(body),
-                    default_level=query.get("level"),
-                    default_source=query.get("source"),
-                )
-            else:
-                parsed = parse_text(
-                    body,
-                    default_level=query.get("level"),
-                    default_source=query.get("source"),
-                    default_title=query.get("title"),
-                )
-        except json.JSONDecodeError as err:
-            return self.json_message(f"Invalid JSON: {err.msg}", 400)
+            parsed = parse_body(
+                raw,
+                is_json=(request.content_type or "").lower() == "application/json",
+                default_level=query.get("level"),
+                default_source=query.get("source"),
+                default_title=query.get("title"),
+            )
         except PayloadError as err:
             return self.json_message(str(err), 400)
 

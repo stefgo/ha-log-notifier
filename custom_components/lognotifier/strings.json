@@ -28,12 +28,16 @@
           "icon": "Icon",
           "badge_levels": "Levels counted by the badge",
           "max_messages": "Keep messages (count)",
-          "max_age_days": "Keep messages (days, 0 = unlimited)"
+          "max_age_days": "Keep messages (days, 0 = unlimited)",
+          "mqtt_topic": "MQTT topic (optional)"
+        },
+        "data_description": {
+          "mqtt_topic": "Messages published to this topic land in the channel, in the same format as over HTTP. Wildcards (+, #) are allowed. Needs the MQTT integration; leave empty for HTTP only."
         }
       },
       "show_urls": {
         "title": "Ingest URLs",
-        "description": "{urls}\n\nEvery URL contains its channel's token — treat it like a password."
+        "description": "{urls}\n\nEvery URL contains its channel's token — treat it like a password. An MQTT topic has no token: who may publish to it is up to the broker."
       },
       "select_channel": {
         "title": "Edit channel",
@@ -50,11 +54,19 @@
           "badge_levels": "Levels counted by the badge",
           "max_messages": "Keep messages (count)",
           "max_age_days": "Keep messages (days, 0 = unlimited)",
+          "mqtt_topic": "MQTT topic (optional)",
           "enabled": "Channel active",
           "rotate_token": "Generate new token",
           "delete": "Delete channel"
+        },
+        "data_description": {
+          "mqtt_topic": "Messages published to this topic land in the channel, in the same format as over HTTP. Wildcards (+, #) are allowed. Needs the MQTT integration; leave empty for HTTP only."
         }
       }
+    },
+    "error": {
+      "invalid_topic": "This is not a valid MQTT topic filter.",
+      "duplicate_topic": "Another channel already uses this topic."
     }
   },
   "entity": {

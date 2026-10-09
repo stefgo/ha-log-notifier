@@ -28,12 +28,16 @@
           "icon": "Symbol",
           "badge_levels": "Level, die in die Badge zählen",
           "max_messages": "Meldungen aufbewahren (Anzahl)",
-          "max_age_days": "Meldungen aufbewahren (Tage, 0 = unbegrenzt)"
+          "max_age_days": "Meldungen aufbewahren (Tage, 0 = unbegrenzt)",
+          "mqtt_topic": "MQTT-Topic (optional)"
+        },
+        "data_description": {
+          "mqtt_topic": "Meldungen, die an dieses Topic gesendet werden, landen im Kanal — im selben Format wie über HTTP. Wildcards (+, #) sind erlaubt. Benötigt die MQTT-Integration; leer lassen für nur HTTP."
         }
       },
       "show_urls": {
         "title": "Ingest-URLs",
-        "description": "{urls}\n\nJede URL enthält den Token ihres Kanals — behandle sie wie ein Passwort."
+        "description": "{urls}\n\nJede URL enthält den Token ihres Kanals — behandle sie wie ein Passwort. Ein MQTT-Topic hat keinen Token: Wer dorthin senden darf, regelt der Broker."
       },
       "select_channel": {
         "title": "Kanal bearbeiten",
@@ -50,11 +54,19 @@
           "badge_levels": "Level, die in die Badge zählen",
           "max_messages": "Meldungen aufbewahren (Anzahl)",
           "max_age_days": "Meldungen aufbewahren (Tage, 0 = unbegrenzt)",
+          "mqtt_topic": "MQTT-Topic (optional)",
           "enabled": "Kanal aktiv",
           "rotate_token": "Neuen Token erzeugen",
           "delete": "Kanal löschen"
+        },
+        "data_description": {
+          "mqtt_topic": "Meldungen, die an dieses Topic gesendet werden, landen im Kanal — im selben Format wie über HTTP. Wildcards (+, #) sind erlaubt. Benötigt die MQTT-Integration; leer lassen für nur HTTP."
         }
       }
+    },
+    "error": {
+      "invalid_topic": "Das ist kein gültiger MQTT-Topic-Filter.",
+      "duplicate_topic": "Ein anderer Kanal verwendet dieses Topic bereits."
     }
   },
   "entity": {

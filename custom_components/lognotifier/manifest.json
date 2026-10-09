@@ -1,6 +1,7 @@
 {
   "domain": "lognotifier",
   "name": "Log Notifier",
+  "after_dependencies": ["mqtt"],
   "codeowners": ["@stefgo"],
   "config_flow": true,
   "dependencies": ["http", "frontend", "websocket_api"],

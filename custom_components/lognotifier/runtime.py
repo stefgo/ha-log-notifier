@@ -39,6 +39,8 @@ class LogNotifierRuntime:
         self.entry = entry
         self.store = store
         self.rate_limiter = RateLimiter()
+        #: Channel ID → topic filter of the MQTT subscriptions that are live.
+        self.mqtt_topics: dict[str, str] = {}
         # Deliberately on hass.data instead of on the runtime object: a reload
         # recreates this object, but the subscribed cards should keep running.
         self._subscribers: list[Callable[[str, dict[str, Any]], None]] = (
@@ -157,6 +159,14 @@ class LogNotifierRuntime:
                 self.store.summary(channel) for channel in self.store.channels
             ],
             "rate_limit": self.rate_limiter.state(),
+            "mqtt": {
+                "configured": {
+                    channel.id: channel.mqtt_topic
+                    for channel in self.store.channels
+                    if channel.mqtt_topic
+                },
+                "subscribed": dict(self.mqtt_topics),
+            },
             "subscribers": len(self._subscribers),
         }
 

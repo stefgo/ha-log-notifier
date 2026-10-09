@@ -9,6 +9,7 @@ from conftest import PACKAGE
 
 const = importlib.import_module(f"{PACKAGE}.const")
 ingest = importlib.import_module(f"{PACKAGE}.ingest")
+models = importlib.import_module(f"{PACKAGE}.models")
 
 
 def test_minimal_payload():
@@ -465,3 +466,89 @@ def test_table_cells_count_across_tables():
     # 150 cells for the first, the remaining 100 for the second, none left.
     assert [len(block["rows"]) for block in parsed.blocks] == [30, 20]
     assert const.MAX_TABLE_CELLS == 250
+
+
+# --- Raw bodies (shared by HTTP and MQTT) ---------------------------------
+
+
+def test_body_starting_with_a_brace_is_json():
+    parsed = ingest.parse_body(b'  {"content": "a", "level": "warn"}')
+    assert parsed.content == "a"
+    assert parsed.level == "WARNING"
+    assert parsed.format == const.FORMAT_MARKDOWN
+
+
+def test_body_without_a_brace_is_plain_text():
+    parsed = ingest.parse_body(b"disk full\n")
+    assert parsed.content == "disk full"
+    assert parsed.level == "INFO"
+    assert parsed.format == const.FORMAT_PLAIN
+
+
+def test_body_declared_as_json_is_parsed_as_json():
+    # A JSON array is valid JSON but not a message.
+    with pytest.raises(ingest.PayloadError, match="Object expected"):
+        ingest.parse_body(b'["a"]', is_json=True)
+
+
+def test_body_defaults_reach_both_parsers():
+    as_json = ingest.parse_body(
+        b'{"content": "a"}', default_level="ERROR", default_source="cron"
+    )
+    assert (as_json.level, as_json.source) == ("ERROR", "cron")
+    as_text = ingest.parse_body(
+        b"a", default_level="ERROR", default_source="cron", default_title="Nightly"
+    )
+    assert (as_text.level, as_text.source, as_text.title) == (
+        "ERROR",
+        "cron",
+        "Nightly",
+    )
+
+
+def test_body_that_is_not_utf8_is_rejected():
+    with pytest.raises(ingest.PayloadError, match="not UTF-8"):
+        ingest.parse_body(b"\xff\xfe")
+
+
+def test_body_with_broken_json_is_rejected():
+    with pytest.raises(ingest.PayloadError, match="Invalid JSON"):
+        ingest.parse_body(b'{"content": ')
+
+
+# --- MQTT topic filters ----------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "topic",
+    ["logs/backups", "logs/+/errors", "logs/#", "#", "+", "/logs", "logs/"],
+)
+def test_valid_topic_filters_are_kept(topic):
+    assert models.normalize_topic_filter(f"  {topic} ") == topic
+
+
+@pytest.mark.parametrize(
+    "topic",
+    [
+        None,
+        5,
+        "",
+        "   ",
+        "logs/#/more",
+        "logs#",
+        "logs/a+",
+        "+a/logs",
+        "a\0b",
+        "x" * 300,
+    ],
+)
+def test_unusable_topic_filters_become_none(topic):
+    assert models.normalize_topic_filter(topic) is None
+
+
+def test_channel_topic_round_trips_through_the_options():
+    channel = models.Channel.from_dict("a", {"mqtt_topic": " logs/a "})
+    assert channel.mqtt_topic == "logs/a"
+    assert channel.to_dict()["mqtt_topic"] == "logs/a"
+    # Channels from before MQTT have no key, and none is invented for them.
+    assert "mqtt_topic" not in models.Channel.from_dict("b", {}).to_dict()
