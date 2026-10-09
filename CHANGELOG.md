@@ -10,6 +10,8 @@ instructions are appended by the workflow and do not belong in an entry.
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-10-09
+
 ### Added
 
 - **Messages over MQTT** — a channel can be given an MQTT topic under
@@ -258,6 +260,7 @@ Message text is never turned into HTML. The card parses a Discord-flavored
 markdown subset into a typed tree and builds its elements from it, so foreign
 text structurally cannot inject markup.
 
+[1.4.0]: https://github.com/stefgo/ha-log-notifier/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/stefgo/ha-log-notifier/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/stefgo/ha-log-notifier/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/stefgo/ha-log-notifier/compare/v1.0.7...v1.1.0
