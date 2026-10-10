@@ -486,6 +486,7 @@ Via "Add card → Log Notifier" with a visual editor, or in YAML:
 type: custom:log-notifier-card
 title: Messages      # omit = no header
 channels: all        # or [backups, services]
+sort: config         # config | name | unread | latest
 levels: [ERROR, WARNING, INFO, TRACE]   # levels enabled initially
 layout: auto         # auto | split | stacked
 height: 70vh         # 500px, a number (= pixels) or calc(…)
@@ -497,20 +498,34 @@ mark_read: manual    # manual | visible | open
 | --- | --- | --- |
 | `type` | — | Required: `custom:log-notifier-card` |
 | `title` | — | Heading of the card. Without it the header is omitted entirely: stacked, the card starts with the channel list, in two columns with both columns |
-| `channels` | `all` | `all` or a list of channel IDs. The order of the list determines the display order; unknown IDs are skipped |
+| `channels` | `all` | `all` or a list of channel IDs. The order of the list determines the display order; unknown IDs are skipped. In the visual editor the selected channels are dragged into place |
+| `sort` | `config` | Order of the channel list — `config`, `name`, `unread` or `latest`, see below |
 | `levels` | all | Levels enabled initially as a list, e.g. `[ERROR, WARNING]`. Every level stands on its own — there is no threshold and no inheritance. In the channel view each one can be toggled individually |
 | `layout` | `auto` | `auto`, `split` or `stacked` — see below |
 | `height` | `70vh` | Height of the message area: a CSS length (`vh`, `svh`, `dvh`, `lvh`, `vmin`, `vmax`, `px`, `rem`, `em`, `%`), a bare number for pixels, or a `calc(…)` expression. In two columns it is the height of the whole card, stacked the height of the scrolling message stream — there the card itself grows with title and channel list |
 | `page_size` | `50` | Messages per load step (10–200). "Load older" fetches one more page each time |
 | `mark_read` | `manual` | When messages count as read — `manual`, `visible` or `open`, see below |
 
-An unknown level in `levels` or an invalid value for `layout`, `mark_read` or
-`height` makes the card stop with an error message instead of silently showing
+An unknown level in `levels` or an invalid value for `sort`, `layout`,
+`mark_read` or `height` makes the card stop with an error message instead of silently showing
 something else.
 
 The card's own texts follow the language of the Home Assistant user profile:
 English and German are included, every other language gets English. The level
 names stay `ERROR`, `WARNING`, `INFO` and `TRACE` in any language.
+
+### `sort`
+
+| Value | Behavior |
+| --- | --- |
+| `config` | The order of the `channels` list; with `all` the order the channels were created in |
+| `name` | Alphabetically by display name, in the language of the user profile |
+| `unread` | The channel with the highest badge number first |
+| `latest` | The channel with the most recent message first, empty channels last |
+
+`unread` and `latest` rearrange the list as messages arrive and are read; the
+open channel stays open and moves with it. Channels that tie keep the order of
+`config`.
 
 ### `layout`
 

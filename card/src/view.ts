@@ -6,7 +6,61 @@
  */
 
 import { toPlainText } from "./markdown";
-import type { ChannelSummary, LogMessage } from "./types";
+import type { ChannelSort, ChannelSummary, LogMessage } from "./types";
+
+export const CHANNEL_SORTS: readonly ChannelSort[] = [
+  "config",
+  "name",
+  "unread",
+  "latest",
+];
+
+/** Compares names in the viewer's language; an unusable tag falls back to the default. */
+function nameCollator(language: string | undefined): Intl.Collator {
+  const options: Intl.CollatorOptions = { sensitivity: "base", numeric: true };
+  try {
+    return new Intl.Collator(language, options);
+  } catch {
+    return new Intl.Collator(undefined, options);
+  }
+}
+
+/**
+ * The channels a card shows, in the order it shows them.
+ *
+ * `wanted` selects: a list keeps its own order and skips unknown IDs, anything
+ * else takes every channel as delivered. `sort` then rearranges that selection;
+ * the sort is stable, so channels that tie stay in the selection's order.
+ */
+export function orderChannels(
+  channels: readonly ChannelSummary[],
+  wanted: "all" | readonly string[] | undefined,
+  sort: ChannelSort = "config",
+  language?: string,
+): ChannelSummary[] {
+  const selected =
+    !wanted || wanted === "all"
+      ? [...channels]
+      : wanted
+          .map((id) => channels.find((channel) => channel.id === id))
+          .filter((channel): channel is ChannelSummary => Boolean(channel));
+  if (sort === "name") {
+    const collator = nameCollator(language);
+    return selected.sort((a, b) => collator.compare(a.name, b.name));
+  }
+  if (sort === "unread") {
+    return selected.sort((a, b) => b.unread - a.unread);
+  }
+  if (sort === "latest") {
+    // A channel without a message has nothing to be recent with.
+    const ts = (channel: ChannelSummary) => channel.last_message?.ts ?? -Infinity;
+    return selected.sort((a, b) => {
+      const [left, right] = [ts(a), ts(b)];
+      return left === right ? 0 : right > left ? 1 : -1;
+    });
+  }
+  return selected;
+}
 
 /**
  * `auto` follows the read position: read messages compact, unread ones in

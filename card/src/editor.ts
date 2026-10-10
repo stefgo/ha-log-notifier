@@ -12,6 +12,7 @@ import type { ChannelSummary, HomeAssistant, LogNotifierCardConfig } from "./typ
 const LABELS: Readonly<Record<string, TextKey | undefined>> = {
   title: "editor_title",
   channels: "editor_channels",
+  sort: "editor_sort",
   levels: "editor_levels",
   layout: "editor_layout",
   height: "editor_height",
@@ -49,12 +50,29 @@ export class LogNotifierCardEditor extends LitElement {
         name: "channels",
         selector: {
           select: {
+            // Chips rather than checkboxes: only they can be dragged, and
+            // the order of the selection is the order on the card.
             multiple: true,
-            mode: "list",
+            reorder: true,
+            mode: "dropdown",
             options: this._channels.map((channel) => ({
               value: channel.id,
               label: channel.name,
             })),
+          },
+        },
+      },
+      {
+        name: "sort",
+        selector: {
+          select: {
+            mode: "dropdown",
+            options: [
+              { value: "config", label: this._t("sort_config") },
+              { value: "name", label: this._t("sort_name") },
+              { value: "unread", label: this._t("sort_unread") },
+              { value: "latest", label: this._t("sort_latest") },
+            ],
           },
         },
       },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { LogMessage } from "../src/types";
+import type { ChannelSummary, LogMessage } from "../src/types";
 import {
   ViewState,
   VisibleReadInput,
@@ -8,6 +8,7 @@ import {
   dividerIndex,
   hasUnread,
   isCompact,
+  orderChannels,
   previewText,
   summaryLine,
   visibleReadState,
@@ -19,6 +20,99 @@ const message = (extra: Partial<LogMessage>): LogMessage => ({
   level: "INFO",
   content: "",
   ...extra,
+});
+
+const channel = (id: string, extra: Partial<ChannelSummary> = {}): ChannelSummary => ({
+  id,
+  name: id,
+  icon: "mdi:bell",
+  enabled: true,
+  badge_levels: ["ERROR"],
+  unread: 0,
+  unread_by_level: {},
+  highest_unread_level: null,
+  last_read_id: 0,
+  total: 0,
+  last_message: null,
+  ...extra,
+});
+
+describe("orderChannels", () => {
+  const ids = (channels: ChannelSummary[]): string[] =>
+    channels.map((entry) => entry.id);
+
+  it("keeps the delivered order for all channels", () => {
+    const channels = [channel("b"), channel("a"), channel("c")];
+    expect(ids(orderChannels(channels, "all"))).toEqual(["b", "a", "c"]);
+    expect(ids(orderChannels(channels, undefined))).toEqual(["b", "a", "c"]);
+  });
+
+  it("follows the order of a list and skips unknown IDs", () => {
+    const channels = [channel("a"), channel("b"), channel("c")];
+    expect(ids(orderChannels(channels, ["c", "gone", "a"]))).toEqual(["c", "a"]);
+  });
+
+  it("does not reorder the list it was given", () => {
+    const channels = [channel("b"), channel("a")];
+    orderChannels(channels, "all", "name");
+    expect(ids(channels)).toEqual(["b", "a"]);
+  });
+
+  it("sorts by display name, not by ID", () => {
+    const channels = [
+      channel("x", { name: "zebra" }),
+      channel("y", { name: "Backup 10" }),
+      channel("z", { name: "backup 2" }),
+    ];
+    expect(ids(orderChannels(channels, "all", "name", "en"))).toEqual([
+      "z",
+      "y",
+      "x",
+    ]);
+  });
+
+  it("sorts names even with a language tag Intl rejects", () => {
+    const channels = [channel("b"), channel("a")];
+    expect(ids(orderChannels(channels, "all", "name", "not a tag"))).toEqual([
+      "a",
+      "b",
+    ]);
+  });
+
+  it("puts the most unread first and leaves ties as selected", () => {
+    const channels = [
+      channel("a"),
+      channel("b", { unread: 2 }),
+      channel("c"),
+      channel("d", { unread: 7 }),
+    ];
+    expect(ids(orderChannels(channels, "all", "unread"))).toEqual([
+      "d",
+      "b",
+      "a",
+      "c",
+    ]);
+    expect(ids(orderChannels(channels, ["c", "b", "a"], "unread"))).toEqual([
+      "b",
+      "c",
+      "a",
+    ]);
+  });
+
+  it("puts the newest message first and empty channels last", () => {
+    const channels = [
+      channel("empty"),
+      channel("old", { last_message: message({ ts: 100 }) }),
+      channel("new", { last_message: message({ ts: 300 }) }),
+      channel("empty2"),
+    ];
+    expect(ids(orderChannels(channels, "all", "latest"))).toEqual([
+      "new",
+      "old",
+      "empty",
+      "empty2",
+    ]);
+  });
 });
 
 describe("hasUnread", () => {

@@ -10,7 +10,17 @@ dev keeps the text; the stable release from main empties this file again.
 Nothing inside an HTML comment is published.
 -->
 
-No change to the integration itself.
+### Channel order on the card
+
+The card can now show its channels in an order of your choosing. In the visual editor the
+selected channels are dragged into place, and the new `sort` option orders the list on its
+own: by name, with the most unread messages first, or with the most recent message first.
+That also works for a card showing all channels, which so far always listed them in the
+order they were created in.
+
+Nothing changes for existing cards: without `sort` the order stays as it was.
+
+### Releases
 
 Releases are now produced by the release workflow all stefgo projects share. A version can
 be tried as a beta before it is released, and every release is described here by hand, above

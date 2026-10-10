@@ -30,6 +30,7 @@ import type {
   LogNotifierCardConfig,
 } from "./types";
 import {
+  CHANNEL_SORTS,
   ViewMode,
   ViewState,
   VisibleReadState,
@@ -38,6 +39,7 @@ import {
   isCompact,
   hasUnread,
   isUnread,
+  orderChannels,
   previewText,
   summaryLine,
   visibleReadState,
@@ -180,6 +182,9 @@ export class LogNotifierCard extends LitElement {
       !["manual", "visible", "open"].includes(config.mark_read)
     ) {
       throw new Error(`Unknown mark_read: ${config.mark_read}`);
+    }
+    if (config.sort && !CHANNEL_SORTS.includes(config.sort)) {
+      throw new Error(`Unknown sort: ${config.sort}`);
     }
     this._height = parseHeight(config.height);
     this._config = { page_size: 50, layout: "auto", mark_read: "manual", ...config };
@@ -509,11 +514,12 @@ export class LogNotifierCard extends LitElement {
   }
 
   private get _visibleChannels(): ChannelSummary[] {
-    const wanted = this._config.channels;
-    if (!wanted || wanted === "all") return this._channels;
-    return wanted
-      .map((id) => this._channels.find((channel) => channel.id === id))
-      .filter((channel): channel is ChannelSummary => Boolean(channel));
+    return orderChannels(
+      this._channels,
+      this._config.channels,
+      this._config.sort,
+      this.hass?.locale?.language ?? this.hass?.language,
+    );
   }
 
   private async _loadChannels(): Promise<void> {
