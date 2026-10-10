@@ -719,9 +719,10 @@ export class LogNotifierCard extends LitElement {
     const active = this._split && channel.id === this._selected;
     const last = channel.last_message;
     const badgeColor = levelColor(channel.highest_unread_level);
+    const unread = channel.unread > 0 ? "unread" : "";
     return html`
       <div
-        class="channel ${channel.enabled ? "" : "disabled"} ${active ? "active" : ""}"
+        class="channel ${channel.enabled ? "" : "disabled"} ${active ? "active" : ""} ${unread}"
         role="button"
         tabindex="0"
         @click=${() => this._openChannel(channel.id)}
@@ -1080,6 +1081,9 @@ export class LogNotifierCard extends LitElement {
     .channel-name {
       font-size: 15px;
       font-weight: 500;
+    }
+    .channel.unread .channel-name {
+      font-weight: 700;
     }
     .channel-preview {
       font-size: 13px;

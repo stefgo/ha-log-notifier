@@ -18,6 +18,8 @@ instructions are appended by the workflow and do not belong in an entry.
 
 ### Changed
 
+- **Channels with unread messages stand out in the list** — their name is set
+  in bold for as long as the badge shows a count.
 - **`mark_read: visible` says when it is suspended** — a line below the level
   chips appears while a level filter is active or unread messages remain below
   the loaded page, the two cases in which nothing is marked read on its own.
