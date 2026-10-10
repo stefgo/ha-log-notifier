@@ -8,6 +8,34 @@ An entry is put together by the release workflow: the text written by hand in
 are added to the release page and do not belong in an entry. The entries up to
 1.4.2 were written by hand as a whole.
 
+## [1.5.0](https://github.com/stefgo/ha-log-notifier/compare/v1.4.2...v1.5.0) (2026-10-10)
+
+### Channel order on the card
+
+The card can now show its channels in an order of your choosing. In the visual editor the
+selected channels are dragged into place, and the new `sort` option orders the list on its
+own: by name, with the most unread messages first, or with the most recent message first.
+That also works for a card showing all channels, which so far always listed them in the
+order they were created in.
+
+Arranging channels by hand no longer means listing every one of them: with the new
+`show_unlisted` option the card puts the channels you name first and shows all others
+below. A channel created later then appears on its own.
+
+Nothing changes for existing cards: without the two options a list of channels still
+selects, and the order stays as it was.
+
+### Releases
+
+Releases are now produced by the release workflow all stefgo projects share. A version can
+be tried as a beta before it is released, and every release is described here by hand, above
+the list of commits.
+
+### Features
+
+* **card:** Make the order of the channels selectable ([85327cb](https://github.com/stefgo/ha-log-notifier/commit/85327cbbdadbc6ee0d5f302c68b3a5bcb20430ec))
+* **card:** Show the channels a manual order leaves out ([1fd9c6f](https://github.com/stefgo/ha-log-notifier/commit/1fd9c6fe6e05ad558b528b41ea6edf99e293ca31))
+
 ## [1.4.2] — 2026-10-10
 
 ### Changed
