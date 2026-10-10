@@ -556,7 +556,7 @@ come on top of it, so subtract roughly another 120 px there.
 | Value | Behavior |
 | --- | --- |
 | `manual` | Only the "Mark all read" button moves the read position |
-| `visible` | The read position advances once every unread message was visible for at least 400 ms |
+| `visible` | The read position advances to the newest message once every unread one was visible for at least 400 ms |
 | `open` | The channel counts as read when opened, as does every arriving message while it stays open |
 
 `visible` observes the message elements and acknowledges only once every unread
@@ -565,10 +565,18 @@ because of the dwell time. It is deliberately all or nothing: the read position
 is a watermark, and marking the newest message as read inevitably marks every
 older one too. Partial progress could not be represented that way.
 
+A message counts as visible when half of it is on screen. One that is taller
+than the message stream can never show half of itself; it counts as soon as it
+fills half of the stream.
+
 Two cases therefore suspend `visible`, because "everything seen" cannot be
 proven there: when a level filter is active (unread messages could be hiding
 behind it) and while unread messages remain below the loaded page — then use
-"Load older" first.
+"Load older" first. A line below the level chips says so while it lasts.
+
+After a connection drop the card loads the open channel again, so what arrived
+in the meantime shows up unread instead of being skipped. The stream is back on
+its newest page then.
 
 ### In the message stream
 

@@ -16,6 +16,27 @@ instructions are appended by the workflow and do not belong in an entry.
   as soon as the stream is scrolled down and brings it back to the top; one at
   the bottom right appears while the red **New** line exists and scrolls to it.
 
+### Changed
+
+- **`mark_read: visible` says when it is suspended** — a line below the level
+  chips appears while a level filter is active or unread messages remain below
+  the loaded page, the two cases in which nothing is marked read on its own.
+- The card re-attaches its visibility observer only when the messages changed,
+  no longer on every state change in Home Assistant.
+
+### Fixed
+
+- **`mark_read: visible` no longer gets stuck on a long message** — a message
+  taller than twice the message stream could never count as seen and kept the
+  whole channel unread. It now counts once it fills half of the stream.
+- **`mark_read: visible` resumes after "Load older" and after the level filter
+  is switched back on** — until now it took another message coming into view.
+- **`mark_read: visible` no longer marks messages read that were never shown**
+  — the read position moves to the newest message seen instead of the newest
+  one in the channel, and after a connection drop the card loads the open
+  channel again instead of silently missing what arrived in between.
+- A failed "mark read" shows an error in the card instead of vanishing.
+
 ## [1.4.0] — 2026-10-09
 
 ### Added

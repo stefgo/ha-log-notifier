@@ -100,5 +100,8 @@ export interface HomeAssistant {
       callback: (message: T) => void,
       subscribeMessage: Record<string, unknown>,
     ): Promise<() => Promise<void>>;
+    /** `ready` fires once the connection is back after a drop. */
+    addEventListener(type: "ready", listener: () => void): void;
+    removeEventListener(type: "ready", listener: () => void): void;
   };
 }
