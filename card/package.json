@@ -1,6 +1,6 @@
 {
   "name": "log-notifier-card",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Lovelace card for the Log Notifier integration",
   "type": "module",
   "private": true,
