@@ -1,6 +1,6 @@
-# `pre-commit install` sets up both hook types below; run it again after
-# pulling this change so the pre-push hook exists.
-default_install_hook_types: [pre-commit, pre-push]
+# `pre-commit install` sets up the hook types below; run it again after
+# pulling this change so the commit-msg hook exists.
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
 # The formatting hooks belong to the commit, not to the push.
 default_stages: [pre-commit]
 
@@ -23,17 +23,31 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
 
-  # Only main is pushed; topic branches stay local and are merged with
-  # --no-ff (see CLAUDE.md). Dependabot's branches are created on GitHub and
-  # never pass through this hook.
+  # Only main and dev are pushed -- a release comes from main, a beta from
+  # dev. Topic branches stay local and are merged with --no-ff (see
+  # CLAUDE.md). Dependabot's branches are created on GitHub and never pass
+  # through this hook.
   - repo: local
     hooks:
       - id: push-main-only
-        name: push main only
+        name: push main and dev only
         language: system
         entry: >-
           bash -c 'branch=$(git symbolic-ref --short HEAD);
-          [ "$branch" = main ] || { echo "Push is only allowed from main (current branch: $branch)."; exit 1; }'
+          [ "$branch" = main ] || [ "$branch" = dev ] || { echo "Push is only allowed from main or dev (current branch: $branch)."; exit 1; }'
         always_run: true
         pass_filenames: false
         stages: [pre-push]
+
+  # The commit type is what the release workflow takes the version from with
+  # bump: auto, so the message is checked like code (commitlint.config.mjs).
+  - repo: local
+    hooks:
+      - id: commitlint
+        name: commitlint
+        language: node
+        additional_dependencies:
+          - "@commitlint/cli@21.2.3"
+          - "@commitlint/config-conventional@21.2.3"
+        entry: commitlint --edit
+        stages: [commit-msg]

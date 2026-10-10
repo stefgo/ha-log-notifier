@@ -212,7 +212,8 @@ HACS offers only with beta versions switched on). **Never bump a version or crea
   summary and changes nothing.
 - `bump` (`auto` | `patch` | `minor` | `major`): `auto` reads the commit types — `feat`
   raises the minor position, `fix`, `perf` and `revert` the patch position, every other
-  type releases nothing — so commit messages follow Conventional Commits. Any other value
+  type releases nothing — so commit messages follow Conventional Commits, checked against
+  `commitlint.config.mjs` by the commit-msg hook of `.pre-commit-config.yaml`. Any other value
   is the step that is taken, whatever the commits say. `major` is the only way a major
   version is created; a `BREAKING CHANGE:` footer raises the minor position.
 - **Every release is described by hand in `.release/next.md`** — what is new and what an
@@ -235,8 +236,9 @@ expects) *before* the release commit and the tag, and attaches the zip to the re
 
 There is a single maintainer and no pull-request flow. Small changes go
 straight to `main`; larger work happens on a branch that **stays local** (the
-`push-main-only` pre-push hook in `.pre-commit-config.yaml` enforces it), is
-tested locally and merged with `git merge --no-ff`. Dependabot's pull requests
+`push-main-only` pre-push hook in `.pre-commit-config.yaml` lets only `main`
+and `dev` through), is tested locally and merged with `git merge --no-ff`.
+`dev` is where a beta is released from. Dependabot's pull requests
 are merged by `.github/workflows/dependabot-auto-merge.yml` once their Tests
 run is green; a red one stays open for a human.
 
