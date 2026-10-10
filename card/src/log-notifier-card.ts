@@ -36,6 +36,7 @@ import {
   countsAsSeen,
   dividerIndex,
   isCompact,
+  hasUnread,
   isUnread,
   previewText,
   summaryLine,
@@ -719,7 +720,7 @@ export class LogNotifierCard extends LitElement {
     const active = this._split && channel.id === this._selected;
     const last = channel.last_message;
     const badgeColor = levelColor(channel.highest_unread_level);
-    const unread = channel.unread > 0 ? "unread" : "";
+    const unread = hasUnread(channel) ? "unread" : "";
     return html`
       <div
         class="channel ${channel.enabled ? "" : "disabled"} ${active ? "active" : ""} ${unread}"
@@ -1078,12 +1079,15 @@ export class LogNotifierCard extends LitElement {
       flex: 1;
       min-width: 0;
     }
+    /* Muted while everything is read, so the channels with something unread
+       are the ones that stand out. */
     .channel-name {
       font-size: 15px;
       font-weight: 500;
+      color: var(--disabled-text-color, var(--secondary-text-color));
     }
     .channel.unread .channel-name {
-      font-weight: 700;
+      color: var(--primary-text-color);
     }
     .channel-preview {
       font-size: 13px;

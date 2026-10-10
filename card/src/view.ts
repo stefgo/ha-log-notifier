@@ -6,7 +6,7 @@
  */
 
 import { toPlainText } from "./markdown";
-import type { LogMessage } from "./types";
+import type { ChannelSummary, LogMessage } from "./types";
 
 /**
  * `auto` follows the read position: read messages compact, unread ones in
@@ -28,6 +28,17 @@ export interface ViewState {
 /** An unread message is always shown in detail, whatever mode or switch say. */
 export function isUnread(id: number, view: ViewState): boolean {
   return id > view.readId;
+}
+
+/**
+ * Whether anything in the channel lies above the read position — in any
+ * level. `unread` would not do: it is the badge's number and only counts the
+ * channel's badge levels.
+ */
+export function hasUnread(
+  channel: Pick<ChannelSummary, "unread_by_level">,
+): boolean {
+  return Object.values(channel.unread_by_level).some((count) => count > 0);
 }
 
 /**

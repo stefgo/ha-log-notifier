@@ -6,6 +6,7 @@ import {
   VisibleReadInput,
   countsAsSeen,
   dividerIndex,
+  hasUnread,
   isCompact,
   previewText,
   summaryLine,
@@ -18,6 +19,18 @@ const message = (extra: Partial<LogMessage>): LogMessage => ({
   level: "INFO",
   content: "",
   ...extra,
+});
+
+describe("hasUnread", () => {
+  it("is false when nothing lies above the read position", () => {
+    expect(hasUnread({ unread_by_level: {} })).toBe(false);
+    expect(hasUnread({ unread_by_level: { ERROR: 0 } })).toBe(false);
+  });
+
+  it("counts levels the badge leaves out", () => {
+    // A channel badging ERROR only reports `unread: 0` for an unread INFO.
+    expect(hasUnread({ unread_by_level: { INFO: 1 } })).toBe(true);
+  });
 });
 
 describe("isCompact", () => {
