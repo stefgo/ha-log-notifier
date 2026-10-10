@@ -43,6 +43,26 @@ export function isCompact(id: number, view: ViewState): boolean {
   return view.toggled.has(id) ? !compact : compact;
 }
 
+/**
+ * Where the "New" divider sits in a list of message IDs, newest first.
+ *
+ * Everything above the divider is unread, so it goes in front of the first
+ * read message — the returned index. If every message is unread it closes the
+ * list (`ids.length`), but only once nothing older is left to load: until then
+ * the read position may lie below the loaded page. `-1` means no divider —
+ * nothing is unread, or it is not known yet where the unread ones end.
+ */
+export function dividerIndex(
+  ids: readonly number[],
+  openedReadId: number,
+  hasMore: boolean,
+): number {
+  const firstRead = ids.findIndex((id) => id <= openedReadId);
+  if (firstRead > 0) return firstRead;
+  if (firstRead === -1 && ids.length > 0 && !hasMore) return ids.length;
+  return -1;
+}
+
 /** Text for the channel preview — a message may consist of blocks alone. */
 export function previewText(message: LogMessage): string {
   if (message.title) return message.title;

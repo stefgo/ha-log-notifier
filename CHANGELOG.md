@@ -10,6 +10,12 @@ instructions are appended by the workflow and do not belong in an entry.
 
 ## [Unreleased]
 
+### Added
+
+- **Jump buttons in the message stream** — an arrow at the top right appears
+  as soon as the stream is scrolled down and brings it back to the top; one at
+  the bottom right appears while the red **New** line exists and scrolls to it.
+
 ## [1.4.0] — 2026-10-09
 
 ### Added

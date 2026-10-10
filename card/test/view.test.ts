@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { LogMessage } from "../src/types";
-import { ViewState, isCompact, previewText, summaryLine } from "../src/view";
+import {
+  ViewState,
+  dividerIndex,
+  isCompact,
+  previewText,
+  summaryLine,
+} from "../src/view";
 
 const message = (extra: Partial<LogMessage>): LogMessage => ({
   id: 1,
@@ -89,5 +95,25 @@ describe("previewText", () => {
   it("prefers the title over the content", () => {
     expect(previewText(message({ title: "Backup", content: "done" }))).toBe("Backup");
     expect(previewText(message({ content: "done" }))).toBe("done");
+  });
+});
+
+describe("dividerIndex", () => {
+  it("sits in front of the first read message", () => {
+    expect(dividerIndex([9, 8, 7, 6], 7, false)).toBe(2);
+    expect(dividerIndex([9, 8, 7, 6], 7, true)).toBe(2);
+  });
+
+  it("is absent when nothing is unread", () => {
+    expect(dividerIndex([9, 8, 7], 9, false)).toBe(-1);
+    expect(dividerIndex([], 0, false)).toBe(-1);
+  });
+
+  it("closes the list when every message is unread", () => {
+    expect(dividerIndex([9, 8, 7], 3, false)).toBe(3);
+  });
+
+  it("waits while older messages may still hold the read position", () => {
+    expect(dividerIndex([9, 8, 7], 3, true)).toBe(-1);
   });
 });

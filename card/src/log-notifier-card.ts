@@ -32,6 +32,7 @@ import type {
 import {
   ViewMode,
   ViewState,
+  dividerIndex,
   isCompact,
   isUnread,
   previewText,
@@ -104,6 +105,8 @@ export class LogNotifierCard extends LitElement {
   @state() private _toggled: ReadonlySet<number> = new Set();
   @state() private _error: string | null = null;
   @state() private _wide = false;
+  /** Whether the message stream is scrolled away from its top. */
+  @state() private _scrolled = false;
 
   private _unsubscribe?: () => Promise<void>;
   private _started = false;
@@ -187,6 +190,34 @@ export class LogNotifierCard extends LitElement {
     // Re-attach after every render: the message elements are different ones.
     this._observeMessages();
     this._slideInArrived();
+    // A render can move the scroll position without a scroll event — a
+    // channel switch, or a stream that was removed and created anew.
+    this._syncScrolled();
+  }
+
+  private _syncScrolled(): void {
+    const stream = this.renderRoot.querySelector<HTMLElement>(".messages");
+    this._scrolled = (stream?.scrollTop ?? 0) > 0;
+  }
+
+  /**
+   * Scrolls the message stream to its top, or — given the "New" divider — far
+   * enough to bring that into the middle of the stream.
+   *
+   * The position is set on the stream itself rather than through
+   * `scrollIntoView`, which would move the dashboard along with it.
+   */
+  private _scrollStream(target?: HTMLElement | null): void {
+    const stream = this.renderRoot.querySelector<HTMLElement>(".messages");
+    if (!stream) return;
+    const top = target
+      ? stream.scrollTop +
+        target.getBoundingClientRect().top -
+        stream.getBoundingClientRect().top -
+        (stream.clientHeight - target.offsetHeight) / 2
+      : 0;
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    stream.scrollTo({ top, behavior: reduced ? "auto" : "smooth" });
   }
 
   /**
@@ -641,6 +672,11 @@ export class LogNotifierCard extends LitElement {
     };
     // The switch offers "detail" as long as anything is still compact.
     const anyCompact = this._messages.some((message) => isCompact(message.id, view));
+    const divider = dividerIndex(
+      this._messages.map((message) => message.id),
+      view.openedReadId,
+      this._hasMore,
+    );
     return html`
       <div class="toolbar">
         ${withBack
@@ -687,21 +723,42 @@ export class LogNotifierCard extends LitElement {
           </button>`;
         })}
       </div>
-      <div class="messages">
-        ${this._levels.length === 0
-          ? html`<div class="empty">${this._t("no_level")}</div>`
-          : this._messages.length === 0 && !this._loading
-          ? html`<div class="empty">${this._t("no_messages")}</div>`
-          : this._renderMessages(view)}
-        ${this._hasMore
-          ? html`<button
-              class="text-button more"
-              ?disabled=${this._loading}
+      <div class="stream">
+        <div class="messages" @scroll=${this._syncScrolled}>
+          ${this._levels.length === 0
+            ? html`<div class="empty">${this._t("no_level")}</div>`
+            : this._messages.length === 0 && !this._loading
+            ? html`<div class="empty">${this._t("no_messages")}</div>`
+            : this._renderMessages(divider, view)}
+          ${this._hasMore
+            ? html`<button
+                class="text-button more"
+                ?disabled=${this._loading}
+                @click=${() =>
+                  this._loadMessages(this._messages[this._messages.length - 1]?.id)}
+              >
+                ${this._t(this._loading ? "loading" : "load_older")}
+              </button>`
+            : nothing}
+        </div>
+        ${this._scrolled
+          ? html`<ha-icon-button
+              class="jump jump-top"
+              .path=${"M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z"}
+              label=${this._t("scroll_top")}
+              @click=${() => this._scrollStream()}
+            ></ha-icon-button>`
+          : nothing}
+        ${divider !== -1
+          ? html`<ha-icon-button
+              class="jump jump-new"
+              .path=${"M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"}
+              label=${this._t("scroll_new")}
               @click=${() =>
-                this._loadMessages(this._messages[this._messages.length - 1]?.id)}
-            >
-              ${this._t(this._loading ? "loading" : "load_older")}
-            </button>`
+                this._scrollStream(
+                  this.renderRoot.querySelector<HTMLElement>(".new-divider"),
+                )}
+            ></ha-icon-button>`
           : nothing}
       </div>
     `;
@@ -710,25 +767,18 @@ export class LogNotifierCard extends LitElement {
   /**
    * The message stream with the "New" divider at the read position.
    *
-   * Messages are listed newest first, so everything above the divider is
-   * unread. It sits in front of the first read message; if every message is
-   * unread it closes the list — but only once nothing older is left to load,
-   * because until then the read position may lie below the loaded page.
+   * `divider` is the index `dividerIndex` gives: the message the divider sits
+   * in front of, or the length of the list when it closes it.
    *
    * The position is the one from opening the channel, not the live one:
    * marking read must not make the divider vanish under the reader's eyes. It
    * is gone the next time the channel is opened with nothing unread.
    */
-  private _renderMessages(view: ViewState) {
-    const firstRead = this._messages.findIndex(
-      (message) => message.id <= view.openedReadId,
-    );
-    const allUnread =
-      firstRead === -1 && this._messages.length > 0 && !this._hasMore;
+  private _renderMessages(divider: number, view: ViewState) {
     return html`
       ${this._messages.map(
         (message, index) => html`
-          ${index === firstRead && index > 0 ? this._renderNewDivider() : nothing}
+          ${index === divider ? this._renderNewDivider() : nothing}
           ${this._renderMessage(
             message,
             isCompact(message.id, view),
@@ -736,7 +786,7 @@ export class LogNotifierCard extends LitElement {
           )}
         `,
       )}
-      ${allUnread ? this._renderNewDivider() : nothing}
+      ${divider === this._messages.length ? this._renderNewDivider() : nothing}
     `;
   }
 
@@ -853,6 +903,12 @@ export class LogNotifierCard extends LitElement {
     }
     /* In two columns the height is already capped — the message list should
        fill the rest of the column instead of limiting a second time. */
+    .pane-detail .stream {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
     .pane-detail .messages {
       flex: 1;
       max-height: none;
@@ -1030,6 +1086,28 @@ export class LogNotifierCard extends LitElement {
       max-height: var(--ln-height, 70vh);
       overflow-y: auto;
       padding: 0 12px 12px;
+    }
+    /* The frame the jump buttons are pinned to: they must stay in place while
+       the stream scrolls underneath. */
+    .stream {
+      position: relative;
+    }
+    .jump {
+      position: absolute;
+      right: 20px;
+      z-index: 1;
+      --mdc-icon-button-size: 36px;
+      color: var(--primary-text-color);
+      background: var(--card-background-color);
+      border: 1px solid var(--divider-color);
+      border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
+    .jump-top {
+      top: 8px;
+    }
+    .jump-new {
+      bottom: 8px;
     }
     .message {
       border-left: 3px solid var(--divider-color);
