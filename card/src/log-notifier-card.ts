@@ -32,11 +32,14 @@ import type {
 import {
   ViewMode,
   ViewState,
+  VisibleReadState,
+  countsAsSeen,
   dividerIndex,
   isCompact,
   isUnread,
   previewText,
   summaryLine,
+  visibleReadState,
 } from "./view";
 
 /** Default height of the message area. */
@@ -109,11 +112,15 @@ export class LogNotifierCard extends LitElement {
   @state() private _scrolled = false;
 
   private _unsubscribe?: () => Promise<void>;
+  /** The connection `_onReady` listens on — `hass` may be a new object by then. */
+  private _connection?: HomeAssistant["connection"];
   private _started = false;
+  /** A `mark_read` from the observer is on its way. */
+  private _marking = false;
   private _resizeObserver?: ResizeObserver;
   private _visibilityObserver?: IntersectionObserver;
-  /** IDs that stayed on screen long enough to count as seen. */
   private _height = DEFAULT_HEIGHT;
+  /** IDs that stayed on screen long enough to count as seen. */
   private _seen = new Set<number>();
   private _dwellTimers = new Map<number, ReturnType<typeof setTimeout>>();
   /** IDs of messages that arrived live and still have to slide in. */
@@ -124,6 +131,28 @@ export class LogNotifierCard extends LitElement {
    * scrolling past quickly should not acknowledge anything.
    */
   private static readonly DWELL_MS = 400;
+
+  /**
+   * Visible shares at which the observer reports. One step per percent up to
+   * the half that counts: a message taller than the stream never gets there
+   * and is judged by the height it shows instead, which takes a report on the
+   * way.
+   */
+  private static readonly SEEN_STEPS = Array.from(
+    { length: 51 },
+    (_, step) => step / 100,
+  );
+
+  /**
+   * State that changes without touching the rendered messages. `hass` alone
+   * arrives with every state change in Home Assistant.
+   */
+  private static readonly PASSIVE_STATE: readonly PropertyKey[] = [
+    "hass",
+    "_scrolled",
+    "_loading",
+    "_error",
+  ];
 
   /** Duration of the slide-in of a message that arrives live. */
   private static readonly SLIDE_MS = 250;
@@ -187,8 +216,11 @@ export class LogNotifierCard extends LitElement {
       this._started = true;
       void this._start();
     }
-    // Re-attach after every render: the message elements are different ones.
-    this._observeMessages();
+    // Re-attach whenever the messages may have changed: lit reuses the
+    // elements, so the same one can stand for another message afterwards.
+    if ([...changed.keys()].some((key) => !LogNotifierCard.PASSIVE_STATE.includes(key))) {
+      this._observeMessages();
+    }
     this._slideInArrived();
     // A render can move the scroll position without a scroll event — a
     // channel switch, or a stream that was removed and created anew.
@@ -275,21 +307,51 @@ export class LogNotifierCard extends LitElement {
     if (!this._visibilityObserver) {
       this._visibilityObserver = new IntersectionObserver(
         (entries) => this._onVisibility(entries),
-        { threshold: 0.5 },
+        { threshold: LogNotifierCard.SEEN_STEPS },
       );
     }
     this._visibilityObserver.disconnect();
+    const rendered = new Set<number>();
     this.renderRoot
       .querySelectorAll<HTMLElement>(".message[data-id]")
-      .forEach((element) => this._visibilityObserver!.observe(element));
+      .forEach((element) => {
+        rendered.add(Number(element.dataset.id));
+        this._visibilityObserver!.observe(element);
+      });
+    // A message that left the stream cannot finish its dwell time.
+    this._dwellTimers.forEach((timer, id) => {
+      if (rendered.has(id)) return;
+      clearTimeout(timer);
+      this._dwellTimers.delete(id);
+    });
+  }
+
+  /** Height of the area the messages scroll in, as far as the window shows it. */
+  private _streamHeight(): number {
+    const stream = this.renderRoot.querySelector<HTMLElement>(".messages");
+    if (!stream) return 0;
+    const pane = stream.closest<HTMLElement>(".pane");
+    return Math.min(
+      stream.clientHeight,
+      pane?.clientHeight ?? Infinity,
+      window.innerHeight,
+    );
   }
 
   private _onVisibility(entries: IntersectionObserverEntry[]): void {
+    const areaHeight = this._streamHeight();
     for (const entry of entries) {
       const id = Number((entry.target as HTMLElement).dataset.id);
       if (!id) continue;
       const running = this._dwellTimers.get(id);
-      if (entry.isIntersecting) {
+      const seen =
+        entry.isIntersecting &&
+        countsAsSeen(
+          entry.intersectionRatio,
+          entry.intersectionRect.height,
+          areaHeight,
+        );
+      if (seen) {
         if (running || this._seen.has(id)) continue;
         this._dwellTimers.set(
           id,
@@ -306,34 +368,35 @@ export class LogNotifierCard extends LitElement {
     }
   }
 
+  /** Where `mark_read: visible` stands for the open channel. */
+  private _visibleReadState(channel: ChannelSummary): VisibleReadState {
+    return visibleReadState({
+      ids: this._messages.map((message) => message.id),
+      readId: channel.last_read_id,
+      latestId: channel.last_message?.id ?? 0,
+      hasMore: this._hasMore,
+      allLevels: this._levels.length === LEVELS.length,
+      seen: this._seen,
+    });
+  }
+
   /**
-   * Acknowledges only once every unread message really appeared on screen.
-   *
-   * The read position is a watermark: marking the newest seen message also
-   * marks every older one as read. Partial progress cannot be represented that
-   * way — hence the all-or-nothing rule.
+   * Acknowledges only once every unread message really appeared on screen —
+   * and only up to the newest one seen, never whatever the channel holds by
+   * the time the call arrives.
    */
   private async _markReadIfAllSeen(): Promise<void> {
     if (this._config.mark_read !== "visible" || !this._selected) return;
+    if (this._marking) return;
     const channel = this._channelById(this._selected);
     if (!channel) return;
-
-    // A level filter can hide unread messages; then "everything seen" cannot
-    // be established.
-    if (this._levels.length !== LEVELS.length) return;
-
-    const unread = this._messages.filter(
-      (message) => message.id > channel.last_read_id,
-    );
-    if (unread.length === 0) return;
-    // If unread messages remain below the loaded page, the proof is missing —
-    // let it load more first.
-    const oldestLoaded = this._messages[this._messages.length - 1];
-    if (this._hasMore && oldestLoaded && oldestLoaded.id > channel.last_read_id) {
-      return;
-    }
-    if (!unread.every((message) => this._seen.has(message.id))) return;
-    await this._markRead();
+    const read = this._visibleReadState(channel);
+    if (read.state !== "ready") return;
+    this._marking = true;
+    const marked = await this._markRead(read.upToId);
+    this._marking = false;
+    // What was seen in the meantime found the call in flight.
+    if (marked) void this._markReadIfAllSeen();
   }
 
   protected firstUpdated(): void {
@@ -358,6 +421,8 @@ export class LogNotifierCard extends LitElement {
     super.disconnectedCallback();
     void this._unsubscribe?.();
     this._unsubscribe = undefined;
+    this._connection?.removeEventListener("ready", this._onReady);
+    this._connection = undefined;
     this._resizeObserver?.disconnect();
     this._resizeObserver = undefined;
     this._visibilityObserver?.disconnect();
@@ -373,14 +438,37 @@ export class LogNotifierCard extends LitElement {
   }
 
   private async _start(): Promise<void> {
-    await this._loadChannels();
+    await this._refresh();
     if (!this.hass) return;
+    this._connection = this.hass.connection;
+    this._connection.addEventListener("ready", this._onReady);
     try {
       this._unsubscribe = await subscribe(this.hass, (event) =>
         this._onStreamEvent(event),
       );
     } catch (err) {
       this._error = String(err);
+    }
+  }
+
+  /**
+   * The connection is back. The subscription resumes on its own, but what
+   * arrived in between was never pushed — without a reload those messages
+   * would be missing from the stream and still fall under the read position.
+   */
+  private _onReady = (): void => {
+    void this._refresh();
+  };
+
+  /**
+   * Fetches the channels again and, for an open channel, its newest page.
+   * What was seen stays seen, and the "New" divider stays where it is.
+   */
+  private async _refresh(): Promise<void> {
+    const open = this._selected;
+    await this._loadChannels();
+    if (open && open === this._selected && this._channelById(open)) {
+      await this._loadMessages();
     }
   }
 
@@ -480,14 +568,24 @@ export class LogNotifierCard extends LitElement {
     } finally {
       this._loading = false;
     }
+    // A reload can lift what suspended "visible" without anything new coming
+    // into view — the observer would stay silent.
+    void this._markReadIfAllSeen();
   }
 
-  private async _markRead(upToId?: number): Promise<void> {
-    if (!this.hass || !this._selected) return;
-    const summary = await markRead(this.hass, this._selected, upToId);
-    this._channels = this._channels.map((channel) =>
-      channel.id === summary.id ? summary : channel,
-    );
+  /** Moves the read position; `false` if the call failed. */
+  private async _markRead(upToId?: number): Promise<boolean> {
+    if (!this.hass || !this._selected) return false;
+    try {
+      const summary = await markRead(this.hass, this._selected, upToId);
+      this._channels = this._channels.map((channel) =>
+        channel.id === summary.id ? summary : channel,
+      );
+      return true;
+    } catch (err) {
+      this._error = this._t("error_mark_read", { error: String(err) });
+      return false;
+    }
   }
 
   /** Puts every message into one form, dropping the individual switches. */
@@ -677,6 +775,10 @@ export class LogNotifierCard extends LitElement {
       view.openedReadId,
       this._hasMore,
     );
+    const read =
+      this._config.mark_read === "visible"
+        ? this._visibleReadState(channel).state
+        : "idle";
     return html`
       <div class="toolbar">
         ${withBack
@@ -723,6 +825,11 @@ export class LogNotifierCard extends LitElement {
           </button>`;
         })}
       </div>
+      ${read === "filtered" || read === "more"
+        ? html`<div class="paused">
+            ${this._t(read === "filtered" ? "visible_paused_filter" : "visible_paused_more")}
+          </div>`
+        : nothing}
       <div class="stream">
         <div class="messages" @scroll=${this._syncScrolled}>
           ${this._levels.length === 0
@@ -1079,6 +1186,12 @@ export class LogNotifierCard extends LitElement {
     }
     .chip:not(.active) {
       opacity: 0.7;
+    }
+    /* Why "visible" is not marking anything read right now. */
+    .paused {
+      padding: 0 12px 8px;
+      color: var(--secondary-text-color);
+      font-size: 12px;
     }
     /* Stacked, the card grows with its content; only the scrolling message
        stream is capped. */

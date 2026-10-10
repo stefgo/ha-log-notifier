@@ -63,6 +63,71 @@ export function dividerIndex(
   return -1;
 }
 
+/**
+ * Whether a message is on screen far enough to count as seen: half of it, or —
+ * for one taller than the stream, which can never show half of itself — enough
+ * to fill half of the stream.
+ */
+export function countsAsSeen(
+  ratio: number,
+  visibleHeight: number,
+  areaHeight: number,
+): boolean {
+  if (ratio >= 0.5) return true;
+  return areaHeight > 0 && visibleHeight >= areaHeight / 2;
+}
+
+/** What `mark_read: visible` needs to know about the open channel. */
+export interface VisibleReadInput {
+  /** IDs of the loaded messages, newest first. */
+  ids: readonly number[];
+  /** The channel's current read position. */
+  readId: number;
+  /** ID of the channel's newest message, whatever the level filter shows. */
+  latestId: number;
+  /** Whether older messages are left to load. */
+  hasMore: boolean;
+  /** Whether every level is switched on. */
+  allLevels: boolean;
+  /** IDs that stayed on screen long enough to count as seen. */
+  seen: ReadonlySet<number>;
+}
+
+/**
+ * Where `mark_read: visible` stands.
+ *
+ * `idle`: nothing is unread. `filtered`: a level filter may hide unread
+ * messages. `more`: unread messages remain below the loaded page. `unseen`:
+ * not every unread message appeared on screen yet. `ready`: all of them did —
+ * `upToId` is the newest one seen, and the read position may move there.
+ */
+export type VisibleReadState =
+  | { state: "idle" | "filtered" | "more" | "unseen" }
+  | { state: "ready"; upToId: number };
+
+/**
+ * Decides whether everything unread was seen.
+ *
+ * The read position is a watermark: marking the newest seen message also
+ * marks every older one as read. Partial progress cannot be represented that
+ * way — hence the all-or-nothing rule, and the two states in which the proof
+ * is out of reach.
+ */
+export function visibleReadState(input: VisibleReadInput): VisibleReadState {
+  const { ids, readId, seen } = input;
+  const unread = ids.filter((id) => id > readId);
+  if (unread.length === 0 && input.latestId <= readId) return { state: "idle" };
+  if (!input.allLevels) return { state: "filtered" };
+  if (input.hasMore && ids.length > 0 && ids[ids.length - 1] > readId) {
+    return { state: "more" };
+  }
+  // The channel has unread messages the list does not hold — it is stale or
+  // still loading.
+  if (unread.length === 0 || unread[0] < input.latestId) return { state: "unseen" };
+  if (!unread.every((id) => seen.has(id))) return { state: "unseen" };
+  return { state: "ready", upToId: unread[0] };
+}
+
 /** Text for the channel preview — a message may consist of blocks alone. */
 export function previewText(message: LogMessage): string {
   if (message.title) return message.title;
