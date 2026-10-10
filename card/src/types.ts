@@ -68,6 +68,11 @@ export interface LogNotifierCardConfig {
   title?: string;
   /** "all" or a list of channel IDs; the order of the list is the display order. */
   channels?: "all" | string[];
+  /**
+   * Also show the channels the `channels` list leaves out, below the listed
+   * ones. The list then only arranges; without it the list also selects.
+   */
+  show_unlisted?: boolean;
   /** How the channel list is ordered; `config` if omitted. */
   sort?: ChannelSort;
   /**

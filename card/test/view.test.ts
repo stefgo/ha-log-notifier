@@ -52,6 +52,26 @@ describe("orderChannels", () => {
     expect(ids(orderChannels(channels, ["c", "gone", "a"]))).toEqual(["c", "a"]);
   });
 
+  it("shows a channel once even if the list names it twice", () => {
+    const channels = [channel("a"), channel("b")];
+    expect(ids(orderChannels(channels, ["b", "a", "b"]))).toEqual(["b", "a"]);
+  });
+
+  it("appends the unlisted channels as delivered when asked to", () => {
+    const channels = [channel("a"), channel("b"), channel("c"), channel("d")];
+    const order = (wanted: "all" | string[]) =>
+      ids(orderChannels(channels, wanted, "config", undefined, true));
+    expect(order(["c", "gone", "a"])).toEqual(["c", "a", "b", "d"]);
+    expect(order("all")).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("sorts listed and unlisted channels alike", () => {
+    const channels = [channel("a"), channel("b", { unread: 3 }), channel("c")];
+    expect(
+      ids(orderChannels(channels, ["c"], "unread", undefined, true)),
+    ).toEqual(["b", "c", "a"]);
+  });
+
   it("does not reorder the list it was given", () => {
     const channels = [channel("b"), channel("a")];
     orderChannels(channels, "all", "name");

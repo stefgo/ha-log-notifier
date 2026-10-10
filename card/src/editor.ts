@@ -12,6 +12,7 @@ import type { ChannelSummary, HomeAssistant, LogNotifierCardConfig } from "./typ
 const LABELS: Readonly<Record<string, TextKey | undefined>> = {
   title: "editor_title",
   channels: "editor_channels",
+  show_unlisted: "editor_show_unlisted",
   sort: "editor_sort",
   levels: "editor_levels",
   layout: "editor_layout",
@@ -62,6 +63,7 @@ export class LogNotifierCardEditor extends LitElement {
           },
         },
       },
+      { name: "show_unlisted", selector: { boolean: {} } },
       {
         name: "sort",
         selector: {
@@ -128,6 +130,8 @@ export class LogNotifierCardEditor extends LitElement {
     if (Array.isArray(value.channels) && value.channels.length === 0) {
       delete value.channels;
     }
+    // Off is the default, and the form reports it as soon as it is rendered.
+    if (!value.show_unlisted) delete value.show_unlisted;
     // Same for the levels: no selection in the editor means "show all".
     if (Array.isArray(value.levels) && value.levels.length === 0) {
       delete value.levels;

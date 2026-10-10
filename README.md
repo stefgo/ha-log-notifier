@@ -486,6 +486,7 @@ Via "Add card → Log Notifier" with a visual editor, or in YAML:
 type: custom:log-notifier-card
 title: Messages      # omit = no header
 channels: all        # or [backups, services]
+show_unlisted: false # true = the list only arranges, the other channels follow
 sort: config         # config | name | unread | latest
 levels: [ERROR, WARNING, INFO, TRACE]   # levels enabled initially
 layout: auto         # auto | split | stacked
@@ -499,6 +500,7 @@ mark_read: manual    # manual | visible | open
 | `type` | — | Required: `custom:log-notifier-card` |
 | `title` | — | Heading of the card. Without it the header is omitted entirely: stacked, the card starts with the channel list, in two columns with both columns |
 | `channels` | `all` | `all` or a list of channel IDs. The order of the list determines the display order; unknown IDs are skipped. In the visual editor the selected channels are dragged into place |
+| `show_unlisted` | `false` | With a `channels` list: also show the channels the list leaves out, below the listed ones. The list then only arranges instead of selecting, and a channel created later appears on its own |
 | `sort` | `config` | Order of the channel list — `config`, `name`, `unread` or `latest`, see below |
 | `levels` | all | Levels enabled initially as a list, e.g. `[ERROR, WARNING]`. Every level stands on its own — there is no threshold and no inheritance. In the channel view each one can be toggled individually |
 | `layout` | `auto` | `auto`, `split` or `stacked` — see below |
@@ -518,7 +520,7 @@ names stay `ERROR`, `WARNING`, `INFO` and `TRACE` in any language.
 
 | Value | Behavior |
 | --- | --- |
-| `config` | The order of the `channels` list; with `all` the order the channels were created in |
+| `config` | The order of the `channels` list, followed by the remaining channels if `show_unlisted` is on; with `all` the order the channels were created in |
 | `name` | Alphabetically by display name, in the language of the user profile |
 | `unread` | The channel with the highest badge number first |
 | `latest` | The channel with the most recent message first, empty channels last |

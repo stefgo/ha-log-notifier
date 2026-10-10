@@ -29,21 +29,30 @@ function nameCollator(language: string | undefined): Intl.Collator {
  * The channels a card shows, in the order it shows them.
  *
  * `wanted` selects: a list keeps its own order and skips unknown IDs, anything
- * else takes every channel as delivered. `sort` then rearranges that selection;
- * the sort is stable, so channels that tie stay in the selection's order.
+ * else takes every channel as delivered. With `showUnlisted` the list only
+ * arranges — the channels it leaves out follow as delivered. `sort` then
+ * rearranges that selection; the sort is stable, so channels that tie stay in
+ * the selection's order.
  */
 export function orderChannels(
   channels: readonly ChannelSummary[],
   wanted: "all" | readonly string[] | undefined,
   sort: ChannelSort = "config",
   language?: string,
+  showUnlisted = false,
 ): ChannelSummary[] {
-  const selected =
-    !wanted || wanted === "all"
-      ? [...channels]
-      : wanted
-          .map((id) => channels.find((channel) => channel.id === id))
-          .filter((channel): channel is ChannelSummary => Boolean(channel));
+  let selected: ChannelSummary[];
+  if (!wanted || wanted === "all") {
+    selected = [...channels];
+  } else {
+    // A Set, so an ID listed twice does not show its channel twice.
+    selected = [...new Set(wanted)]
+      .map((id) => channels.find((channel) => channel.id === id))
+      .filter((channel): channel is ChannelSummary => Boolean(channel));
+    if (showUnlisted) {
+      selected.push(...channels.filter((channel) => !selected.includes(channel)));
+    }
+  }
   if (sort === "name") {
     const collator = nameCollator(language);
     return selected.sort((a, b) => collator.compare(a.name, b.name));

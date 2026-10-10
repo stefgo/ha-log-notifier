@@ -519,6 +519,7 @@ export class LogNotifierCard extends LitElement {
       this._config.channels,
       this._config.sort,
       this.hass?.locale?.language ?? this.hass?.language,
+      this._config.show_unlisted,
     );
   }
 

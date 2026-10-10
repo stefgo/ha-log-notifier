@@ -18,7 +18,12 @@ own: by name, with the most unread messages first, or with the most recent messa
 That also works for a card showing all channels, which so far always listed them in the
 order they were created in.
 
-Nothing changes for existing cards: without `sort` the order stays as it was.
+Arranging channels by hand no longer means listing every one of them: with the new
+`show_unlisted` option the card puts the channels you name first and shows all others
+below. A channel created later then appears on its own.
+
+Nothing changes for existing cards: without the two options a list of channels still
+selects, and the order stays as it was.
 
 ### Releases
 
