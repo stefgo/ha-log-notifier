@@ -60,11 +60,11 @@ HACS installs the release asset, not the repository: `hacs.json` sets
 blueprint stays outside that zip; HACS handles one category per repository and
 this one is registered as an integration.
 
-The release description comes from `CHANGELOG.md`:
-`.github/scripts/release_notes.py` cuts out the `## <version>` section and
-appends the installation part, which is why an entry carries only what changed.
-An empty `[Unreleased]` section fails the release — write the entry **before**
-releasing. A release must never go out with nothing but a commit list.
+The release description opens with the text written by hand in
+`.release/next.md`, followed by the list of commits; `.release/footer.md` is
+the installation part, which is why the text carries only what changed. An
+empty `.release/next.md` fails the release — write it **before** releasing. A
+release must never go out with nothing but a commit list.
 
 `custom_components/lognotifier/brand/` holds `icon.png` (256×256) and
 `icon@2x.png` (512×512), which HA 2026.3 and newer serve from
@@ -203,24 +203,33 @@ build on every push and pull request, and again before a release.
 
 ## Releasing
 
-Bump the version in **both** `custom_components/lognotifier/manifest.json` ## Releasing
+A release is started by hand, never by pushing a tag: **Actions → Create Release → Run
+workflow**, on `main` for a release or on `dev` for a beta (`x.y.z-beta.n`, a prerelease
+HACS offers only with beta versions switched on). **Never bump a version or create a
+`v*` tag by hand.**
 
-A release is started by hand, never by pushing a tag: **Actions → Release →
-Run workflow** on `main`, choosing `bump` (`patch` | `minor` | `major`) and
-`dry_run` (on by default — shows the next version, the diff and the release
-notes in the run summary and changes nothing). **Never bump a version or
-create a `v*` tag by hand.**
+- `dry_run` (on by default) shows the next version and the complete notes in the run
+  summary and changes nothing.
+- `bump` (`auto` | `patch` | `minor` | `major`): `auto` reads the commit types — `feat`
+  raises the minor position, `fix`, `perf` and `revert` the patch position, every other
+  type releases nothing — so commit messages follow Conventional Commits. Any other value
+  is the step that is taken, whatever the commits say. `major` is the only way a major
+  version is created; a `BREAKING CHANGE:` footer raises the minor position.
+- **Every release is described by hand in `.release/next.md`** — what is new and what an
+  upgrade needs, written for someone who uses the integration. The text goes above the
+  generated list of commits, in the GitHub release and in `CHANGELOG.md`; a release
+  without it is refused. Write it as part of the change, not at release time. A beta
+  keeps the text, the release from `main` empties the file. `.release/footer.md` is the
+  installation part appended to every release page.
+- **`dev` is merged into `main` with its history — never squashed or rebased** — and
+  `main` back into `dev` before the next beta. The workflow checks both.
 
-`.github/workflows/release.yml` refuses any branch but `main`, runs `test.yml`,
-then `.github/scripts/bump_version.py` raises the version in `manifest.json`,
-`card/package.json` and `card/package-lock.json` (which must agree), turns
-`## [Unreleased]` into `## [x.y.z] — <date>` with a fresh empty Unreleased
-section above it and adds the compare link. It builds the minified card and
-the zip *before* pushing `chore(release): x.y.z [skip ci]` and the annotated
-tag atomically, then publishes the GitHub release with the body from
-`.github/scripts/release_notes.py` — the CHANGELOG entry *is* the release
-description. The tag is pushed with `GITHUB_TOKEN` and starts no other
-workflow, which is why everything happens in that one run.
+`.github/workflows/release.yml` calls
+[stefgo/release-workflows](https://github.com/stefgo/release-workflows), which carries
+semantic-release and its configuration for every stefgo project. It runs `test.yml`, writes the
+version to `manifest.json`, `card/package.json` and `card/package-lock.json`, builds the
+minified card and zips `custom_components/lognotifier` (manifest at the archive root, as HACS
+expects) *before* the release commit and the tag, and attaches the zip to the release.
 
 ### Branches and pull requests
 
