@@ -10,6 +10,12 @@ instructions are appended by the workflow and do not belong in an entry.
 
 ## [Unreleased]
 
+### Changed
+
+- **The selected channel is never muted in the list** — its name keeps the
+  full text color even when it is read through. It is the one being read, and
+  opening a channel would otherwise mute its name right away.
+
 ## [1.4.1] — 2026-10-10
 
 ### Added
@@ -23,8 +29,7 @@ instructions are appended by the workflow and do not belong in an entry.
 - **Channels with unread messages stand out in the list** — their name keeps
   the full text color while anything lies above the read position, in any
   level and so also when the badge, which counts the channel's badge levels
-  only, is empty. The names of channels that are read through are muted,
-  except for the selected channel, which always keeps the full text color.
+  only, is empty. The names of channels that are read through are muted.
 - **`mark_read: visible` says when it is suspended** — a line below the level
   chips appears while a level filter is active or unread messages remain below
   the loaded page, the two cases in which nothing is marked read on its own.
