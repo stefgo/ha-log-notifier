@@ -57,11 +57,24 @@ export interface ChannelSummary {
   last_message: LogMessage | null;
 }
 
+/**
+ * Order of the channel list. `config` keeps the order of the card's `channels`
+ * list — or, for all channels, the one they were created in.
+ */
+export type ChannelSort = "config" | "name" | "unread" | "latest";
+
 export interface LogNotifierCardConfig {
   type: string;
   title?: string;
-  /** "all" or a list of channel IDs. */
+  /** "all" or a list of channel IDs; the order of the list is the display order. */
   channels?: "all" | string[];
+  /**
+   * Also show the channels the `channels` list leaves out, below the listed
+   * ones. The list then only arranges; without it the list also selects.
+   */
+  show_unlisted?: boolean;
+  /** How the channel list is ordered; `config` if omitted. */
+  sort?: ChannelSort;
   /**
    * Levels active initially. Every level stands on its own — there is no
    * threshold. If omitted, all four are active.

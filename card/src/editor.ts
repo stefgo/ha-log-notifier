@@ -12,6 +12,8 @@ import type { ChannelSummary, HomeAssistant, LogNotifierCardConfig } from "./typ
 const LABELS: Readonly<Record<string, TextKey | undefined>> = {
   title: "editor_title",
   channels: "editor_channels",
+  show_unlisted: "editor_show_unlisted",
+  sort: "editor_sort",
   levels: "editor_levels",
   layout: "editor_layout",
   height: "editor_height",
@@ -49,12 +51,30 @@ export class LogNotifierCardEditor extends LitElement {
         name: "channels",
         selector: {
           select: {
+            // Chips rather than checkboxes: only they can be dragged, and
+            // the order of the selection is the order on the card.
             multiple: true,
-            mode: "list",
+            reorder: true,
+            mode: "dropdown",
             options: this._channels.map((channel) => ({
               value: channel.id,
               label: channel.name,
             })),
+          },
+        },
+      },
+      { name: "show_unlisted", selector: { boolean: {} } },
+      {
+        name: "sort",
+        selector: {
+          select: {
+            mode: "dropdown",
+            options: [
+              { value: "config", label: this._t("sort_config") },
+              { value: "name", label: this._t("sort_name") },
+              { value: "unread", label: this._t("sort_unread") },
+              { value: "latest", label: this._t("sort_latest") },
+            ],
           },
         },
       },
@@ -110,6 +130,8 @@ export class LogNotifierCardEditor extends LitElement {
     if (Array.isArray(value.channels) && value.channels.length === 0) {
       delete value.channels;
     }
+    // Off is the default, and the form reports it as soon as it is rendered.
+    if (!value.show_unlisted) delete value.show_unlisted;
     // Same for the levels: no selection in the editor means "show all".
     if (Array.isArray(value.levels) && value.levels.length === 0) {
       delete value.levels;
