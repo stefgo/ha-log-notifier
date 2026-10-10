@@ -1080,13 +1080,15 @@ export class LogNotifierCard extends LitElement {
       min-width: 0;
     }
     /* Muted while everything is read, so the channels with something unread
-       are the ones that stand out. */
+       are the ones that stand out. The selected channel is never muted: it is
+       the one being read. */
     .channel-name {
       font-size: 15px;
       font-weight: 500;
       color: var(--disabled-text-color, var(--secondary-text-color));
     }
-    .channel.unread .channel-name {
+    .channel.unread .channel-name,
+    .channel.active .channel-name {
       color: var(--primary-text-color);
     }
     .channel-preview {
