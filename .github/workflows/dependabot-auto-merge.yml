@@ -4,19 +4,26 @@ name: Merge Dependency Updates
 # repository is maintained without pull requests. An update that is opened and
 # never merged is not a slower update, it is none.
 #
-# The gate is the pull request's own Tests run: this workflow starts when that
-# run has finished and merges only if it succeeded. A red run leaves the pull
-# request open and visible, which is the case that wants a human anyway.
+# The gate is the pull request's own checks, Tests and Validate: this workflow
+# starts when one of them has finished and merges once every check of the pull
+# request has passed. A red run leaves the pull request open and visible, which
+# is the case that wants a human anyway.
 #
 # Deliberately not `gh pr merge --auto`: without branch protection there are no
 # required checks for auto-merge to wait on, and it merges immediately.
 on:
   workflow_run:
-    workflows: [Tests]
+    workflows: [Tests, Validate]
     types: [completed]
 
 permissions:
   contents: read
+
+# Per pull request, one after the other: when both runs finish together, the
+# second finds the pull request merged and stops.
+concurrency:
+  group: dependabot-merge-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
 
 jobs:
   merge:
@@ -26,7 +33,7 @@ jobs:
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.actor.login == 'dependabot[bot]'
-    name: Merge once the tests are green
+    name: Merge once the checks are green
     runs-on: ubuntu-latest
     permissions:
       contents: write # merge the pull request
@@ -41,4 +48,15 @@ jobs:
           GH_REPO: ${{ github.repository }}
           BRANCH: ${{ github.event.workflow_run.head_branch }}
           SHA: ${{ github.event.workflow_run.head_sha }}
-        run: gh pr merge "$BRANCH" --squash --delete-branch --match-head-commit "$SHA"
+        run: |
+          if [ "$(gh pr view "$BRANCH" --json state --jq .state 2>/dev/null)" != OPEN ]; then
+            echo "The pull request of $BRANCH is no longer open."
+            exit 0
+          fi
+          # Every check of the pull request, not only the run that started this
+          # one. While the other still runs, the run that finishes last merges.
+          if ! gh pr checks "$BRANCH"; then
+            echo "Not every check has passed (yet); nothing merged."
+            exit 0
+          fi
+          gh pr merge "$BRANCH" --squash --delete-branch --match-head-commit "$SHA"
