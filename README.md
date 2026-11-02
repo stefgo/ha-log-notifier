@@ -125,17 +125,10 @@ lands in the channel as `plain`. Level, source and title then come from the
 query parameters `?level=`, `?source=` and `?title=`; with JSON, `level` and
 `source` serve as defaults that the payload may override.
 
-| Limit | Value | Behavior when exceeded |
-| --- | --- | --- |
-| Body | 16 KiB | `413`, the message is discarded |
-| `content` | 8000 characters | truncated and marked with `…` |
-| `title` / `source` | 200 / 100 characters | truncated |
-| `tags` | 10 items of 40 characters | the surplus is dropped |
-| `blocks` | 20 blocks; text blocks share the 8000 characters with `content`; per grid 10 rows of up to 5 fields and 6 columns, 25 fields across all grids; label 100, value 1000 characters; per table 10 columns and 50 rows, 250 cells across all tables, 200 characters per cell | the surplus is dropped, texts are truncated |
-| Throughput | 60/min per channel, bursts up to 20 | `429`, the message is discarded |
-
-Other error cases: `401` unknown or disabled token, `400` unusable payload or
-unknown level, `503` integration not ready.
+Size and throughput are capped, see [Limits](#limits): a body over 16 KiB is
+answered with `413`, a channel over its rate with `429`. Other error cases:
+`401` unknown or disabled token, `400` unusable payload or unknown level, `503`
+integration not ready.
 
 ### Via MQTT
 
@@ -168,7 +161,7 @@ without title or source — send JSON when the level matters.
   every restart and reload; publish without `-r`.
 - **There is no token.** Who may publish to the topic is decided by the
   broker — restrict it with ACLs if the broker is shared.
-- **There is no response.** The limits above apply unchanged, but a message
+- **There is no response.** The [limits](#limits) apply unchanged, but a message
   that is too large, over the rate limit or unusable is only reported in Home
   Assistant's log.
 - If the MQTT integration is added after the topic was entered, reload Log
@@ -702,9 +695,9 @@ there:
 
 Messages live in memory as a ring buffer and are written to
 `.storage/lognotifier.messages` with a delay. Per channel there is a maximum
-count (default 500, max. 5000) and a maximum age (default 30 days, `0` =
-unlimited); anything older is cleaned up on write and every six hours. When a
-channel is deleted, its messages go with it.
+count (default 500, max. 5000) and a maximum age (default 30 days, max. 365,
+`0` = unlimited); anything older is cleaned up on write and every six hours.
+When a channel is deleted, its messages go with it.
 
 The read position is a watermark per channel (`last_read_id`) and never moves
 backwards — two clients acknowledging in different orders cannot inflate the
@@ -713,6 +706,61 @@ badge again.
 The config entry's diagnostics (Settings → Devices & services → Log Notifier →
 Download) contain channel states, counters and the state of the throttle — the
 ingest tokens deliberately not.
+
+## Limits
+
+The limits keep a single sender stuck in an error loop from flooding a channel
+or keeping Home Assistant busy. Only the retention is set per channel; every
+other limit is fixed.
+
+### Per message
+
+They apply to HTTP, MQTT and `lognotifier.send` alike, except where noted.
+
+| Limit | Value | When exceeded |
+| --- | --- | --- |
+| Body | 16 KiB (HTTP and MQTT) | HTTP: `413`; MQTT: logged. The message is discarded |
+| `content` | 8000 characters | truncated |
+| `title` | 200 characters | truncated |
+| `source` | 100 characters | truncated |
+| `tags` | 10 tags of up to 40 characters each | further tags are dropped, longer ones truncated |
+| `blocks` | 20 blocks | further blocks are dropped |
+
+### Within blocks
+
+| Limit | Value | When exceeded |
+| --- | --- | --- |
+| Text blocks | share the 8000 characters with `content` | truncated; once the budget is used up, further text blocks are dropped |
+| Grid rows | 10 per grid | further rows are dropped |
+| Fields per row | 5 | further fields are dropped |
+| Columns per row | 6, as the sum of all `span`s | spans are shortened, every field keeps at least one column |
+| Fields in total | 25 across all grids of a message | further fields are dropped |
+| Label | 100 characters (fields and table heads) | truncated |
+| Field value | 1000 characters | truncated |
+| Table columns | 10 per table | further columns are dropped |
+| Table rows | 50 per table | further rows are dropped |
+| Table cells | 250 across all tables of a message | the first row that no longer fits ends its table |
+| Cell | 200 characters | truncated |
+
+None of these refuses a message: what fits is kept, the rest is dropped.
+
+### Throughput
+
+60 messages per minute per channel, with bursts of up to 20 at once — a token
+bucket that holds 20 and refills one per second. HTTP and MQTT draw from the
+same bucket; `lognotifier.send` from an automation is not throttled. A message
+over the rate is discarded: HTTP answers `429`, MQTT only logs a warning. The
+bucket starts full again after a restart or a reload of the integration.
+
+### Retention and reading
+
+| Limit | Default | Range | Set under |
+| --- | --- | --- | --- |
+| Messages kept per channel | 500 | 1–5000 | Configure → Edit channel |
+| Maximum age | 30 days | 0–365, `0` = unlimited | Configure → Edit channel |
+| MQTT topic filter | — | up to 250 characters | Configure → Edit channel |
+| Messages per load step in the card | 50 | 10–200 | card option `page_size` |
+| Messages per `lognotifier/messages` call | 50 | 1–200 | `limit` parameter |
 
 ## Tests
 
