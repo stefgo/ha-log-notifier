@@ -242,9 +242,10 @@ and `dev` through), is tested locally and merged with `git merge --no-ff`.
 
 Dependency updates come from Renovate, run centrally from
 [stefgo/renovate-config](https://github.com/stefgo/renovate-config) (shared
-preset and the hourly runner). Renovate opens its pull requests on Monday
-mornings and merges them itself, squashed, once every check — Tests and
-Validate — is green; a red one stays open for a human. What is particular to
+preset and the runner, daily at noon). Renovate opens its pull requests on
+Mondays and merges them itself, squashed, on the first run after every check —
+Tests and Validate — is green; a red one stays open for a human, and so does
+an update of the Python or Node version the workflows run on. What is particular to
 this repository (the rollup group, the TypeScript 7 hold) lives in
 `.github/renovate.json5`. The commits are typed `ci(deps)` and `chore(deps)`
 and release nothing by themselves.
