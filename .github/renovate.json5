@@ -8,8 +8,11 @@
   packageRules: [
     {
       // One pull request for rollup and its plugins: they are released
-      // together and a half-updated set rarely builds.
+      // together and a half-updated set rarely builds. Major updates only —
+      // minor and patch ones already travel in the preset's weekly group, and
+      // a group name here would pull them out of it again.
       matchPackageNames: ["rollup", "@rollup/*"],
+      matchUpdateTypes: ["major"],
       groupName: "rollup",
     },
     {
