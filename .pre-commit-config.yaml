@@ -25,7 +25,7 @@ repos:
 
   # Only main and dev are pushed -- a release comes from main, a beta from
   # dev. Topic branches stay local and are merged with --no-ff (see
-  # CLAUDE.md). Dependabot's branches are created on GitHub and never pass
+  # CLAUDE.md). Renovate's branches are created on GitHub and never pass
   # through this hook.
   - repo: local
     hooks:
