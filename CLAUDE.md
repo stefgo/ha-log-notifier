@@ -238,9 +238,16 @@ There is a single maintainer and no pull-request flow. Small changes go
 straight to `main`; larger work happens on a branch that **stays local** (the
 `push-main-only` pre-push hook in `.pre-commit-config.yaml` lets only `main`
 and `dev` through), is tested locally and merged with `git merge --no-ff`.
-`dev` is where a beta is released from. Dependabot's pull requests
-are merged by `.github/workflows/dependabot-auto-merge.yml` once their Tests
-run is green; a red one stays open for a human.
+`dev` is where a beta is released from.
+
+Dependency updates come from Renovate, run centrally from
+[stefgo/renovate-config](https://github.com/stefgo/renovate-config) (shared
+preset and the hourly runner). Renovate opens its pull requests on Monday
+mornings and merges them itself, squashed, once every check — Tests and
+Validate — is green; a red one stays open for a human. What is particular to
+this repository (the rollup group, the TypeScript 7 hold) lives in
+`.github/renovate.json5`. The commits are typed `ci(deps)` and `chore(deps)`
+and release nothing by themselves.
 
 `,
 the card element is `log-notifier-card`. This mismatch is deliberate — changing
