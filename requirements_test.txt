@@ -2,5 +2,5 @@
 # Logik (Levels, Store, Ingest-Parsing, Rate-Limit) plus die Konsistenz von
 # Manifest und Übersetzungen.
 pytest>=8.0
-ruff>=0.8
+pre-commit>=4.0
 mypy>=1.13

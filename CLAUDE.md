@@ -34,7 +34,9 @@ npm --prefix card run typecheck
 ```
 
 `ruff` runs through `.pre-commit-config.yaml` (`pre-commit install` once); its
-configuration is in `pyproject.toml`. `builddeploy.sh` builds the card and
+configuration is in `pyproject.toml`. The hook's `rev` is the only ruff version
+in the project: CI runs `pre-commit run --all-files` instead of installing ruff
+on its own. `builddeploy.sh` builds the card and
 rsyncs integration + blueprint to a Home Assistant host — it reads the target
 from `.env`, see `.env.example`.
 
