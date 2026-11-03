@@ -23,5 +23,17 @@
       matchPackageNames: ["typescript"],
       allowedVersions: "<7",
     },
+    {
+      // Home Assistant sets the Python version the tests run on, not the
+      // Python release calendar: pytest-homeassistant-custom-component follows
+      // the interpreter HA requires, and on an older one pip silently resolves
+      // a months-old Home Assistant instead of failing. Raise this bound
+      // together with the workflows once HA moves to the next Python.
+      // pyproject.toml's target versions stay at the oldest Python the
+      // supported HA releases (hacs.json) still run on.
+      matchManagers: ["github-actions"],
+      matchDepNames: ["python"],
+      allowedVersions: "<3.15",
+    },
   ],
 }

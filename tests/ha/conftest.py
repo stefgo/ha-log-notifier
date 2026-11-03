@@ -9,7 +9,9 @@ commands cannot be faked usefully.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import Any
+from unittest.mock import MagicMock, Mock
 
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -66,6 +68,21 @@ TWO_CHANNELS = {
 def auto_enable_custom_integrations(enable_custom_integrations):
     """Let Home Assistant find custom_components/lognotifier at all."""
     return enable_custom_integrations
+
+
+@pytest.fixture
+def mqtt_client_mock(mqtt_client_mock: MagicMock) -> Iterator[MagicMock]:
+    """The plugin's paho mock, with its socket closed after the test.
+
+    Home Assistant's MQTT client starts a one-second housekeeping timer when
+    the socket opens and cancels it only when the socket closes. The mock opens
+    one on connect but never closes it, so the timer outlives the test and the
+    plugin's cleanup check fails every test that set up MQTT.
+    """
+    yield mqtt_client_mock
+    mqtt_client_mock.on_socket_close(
+        mqtt_client_mock, None, Mock(fileno=Mock(return_value=-1))
+    )
 
 
 @pytest.fixture
